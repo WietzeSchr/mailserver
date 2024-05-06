@@ -4,31 +4,6 @@ import getpass
 import re
 import logging
 
-def send_smtp_command():
-
-    # This function sends a correct formatted smtp commands to the server
-    #
-    # Supported SMTP commands by this function, with their correct syntax
-    # according to RFC821 - https://www.rfc-editor.org/rfc/rfc821
-    #
-    #     HELO <SP> <domain> <CRLF>
-    #     MAIL <SP> FROM:<reverse-path> <CRLF>
-    #     RCPT <SP> TO:<forward-path> <CRLF>
-    #     DATA <CRLF>
-    #     QUIT <CRLF>
-    # 
-    # Possible return codes:
-    #
-    #     211 System status, or system help reply
-    #     220 <domain> Service ready
-    #     221 <domain> Service closing transmission channel
-    #     250 Requested mail action okay, completed
-    #     251 User not local; will forward to <forward-path>
-    #     550 Requested action not taken: mailbox unavailable
-    #     354 Start mail input; end with <CRLF>.<CRLF>
-    #
-    
-    
 def send_mail_smtp(client_config, message):
     
     # This function sends correct formatted smtp commands to the server
