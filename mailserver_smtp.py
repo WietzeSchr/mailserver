@@ -5,8 +5,8 @@ import time
 
 def handle_client_connection(server_config, client_socket, client_address):
     received_commands = {"HELO": False,
-                         "MAIL_FROM": False,
-                         "RCPT_TO": False,
+                         "MAIL": False,
+                         "RCPT": False,
                          "DATA": False}
     
     running_conversation = True
@@ -19,6 +19,46 @@ def handle_client_connection(server_config, client_socket, client_address):
         while running_conversation:
             client_request = client_socket.recv(1024).decode("utf-8")
             print(f"Client: {client_request}")
+            client_request = client_request.strip().split(' ')
+
+            if client_request[0].upper() == "HELO":
+                server_response = f"250 OK {client_request}"
+                print(f"Server: {server_response}")
+                client_socket.send(server_response.encode("utf-8"))
+                received_commands["HELO"] = True
+
+            if client_request[0].upper() == "MAIL":
+                if received_commands["HELO"]:
+                    server_response = f"250 OK {client_request}"
+                    print(f"Server: {server_response}")
+                    client_socket.send(server_response.encode("utf-8"))
+                    received_commands["MAIL"] = True
+
+            if client_request[0].upper() == "RCPT":
+                if received_commands["MAIL"]:
+                    user = client_request[2].split('@')[0]
+                    # Check for validate user
+                    if not user_in_domain():
+                        server_response = f"550 No such user"
+                    else:
+                        server_response = f"250 OK {client_request}"
+                        print(f"Server: {server_response}")
+                        client_socket.send(server_response.encode("utf-8"))
+                        received_commands["RCPT"] = user
+
+            if client_request[0].upper() == "DATA":
+                if received_commands["RCPT"]:
+                    server_response = f"354 Start mail input; end with <CRLF>.<CRLF>"
+                    print(f"Server: {server_response}")
+                    client_socket.send(server_response.encode("utf-8"))
+                    content = []
+                    data = client_socket.recv(1024).decode("utf-8")
+                    while data != ".":
+                        content.append(data)
+                    store_mail(received_commands["RCPT"], data)
+                    server_response = f"250 OK Message accepted for delivery"
+                    print(f"Server: {server_response}")
+                    client_socket.send(server_response.encode("utf-8"))
 
             if client_request.lower() == "quit":
                 server_response = f"221 {server_config['HOST']} Service closing transmission channel"
@@ -36,6 +76,14 @@ def handle_client_connection(server_config, client_socket, client_address):
     finally:
         client_socket.close()
         print(f"The connection to client {client_address[0]} on port {client_address[1]} has been closed!")
+
+
+def store_mail(recipient, data):
+    pass
+
+
+def user_in_domain():
+    pass
 
 
 def run_mailserver_smtp(server_config):
