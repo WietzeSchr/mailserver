@@ -4,16 +4,60 @@ import getpass
 import re
 import logging
 
+def send_smtp_command():
+
+    # This function sends a correct formatted smtp commands to the server
+    #
+    # Supported SMTP commands by this function, with their correct syntax
+    # according to RFC821 - https://www.rfc-editor.org/rfc/rfc821
+    #
+    #     HELO <SP> <domain> <CRLF>
+    #     MAIL <SP> FROM:<reverse-path> <CRLF>
+    #     RCPT <SP> TO:<forward-path> <CRLF>
+    #     DATA <CRLF>
+    #     QUIT <CRLF>
+    # 
+    # Possible return codes:
+    #
+    #     211 System status, or system help reply
+    #     220 <domain> Service ready
+    #     221 <domain> Service closing transmission channel
+    #     250 Requested mail action okay, completed
+    #     251 User not local; will forward to <forward-path>
+    #     550 Requested action not taken: mailbox unavailable
+    #     354 Start mail input; end with <CRLF>.<CRLF>
+    #
+    
+    
 def send_mail_smtp(client_config, message):
     
-    # This function sends smtp commands to the smtp server
-    # The function receives:
-    #    client_config - contains the host and port for the smtp server
-    #    message - a list with the checked mail lines
+    # This function sends correct formatted smtp commands to the server
+    #
+    # Supported SMTP commands by this function, with their correct syntax
+    # according to RFC821 - https://www.rfc-editor.org/rfc/rfc821
+    #
+    #     HELO <SP> <domain> <CRLF>
+    #     MAIL <SP> FROM:<reverse-path> <CRLF>
+    #     RCPT <SP> TO:<forward-path> <CRLF>
+    #     DATA <CRLF>
+    #     QUIT <CRLF>
+    # 
+    # Possible return codes:
+    #
+    #     211 System status, or system help reply
+    #     220 <domain> Service ready
+    #     221 <domain> Service closing transmission channel
+    #     250 Requested mail action okay, completed
+    #     251 User not local; will forward to <forward-path>
+    #     550 Requested action not taken: mailbox unavailable
+    #     354 Start mail input; end with <CRLF>.<CRLF>
+    #
 
     logger.info("Send mail to smtp server")
     try:
+        # Connect to SMTP server
         logger.debug(f"   Connect to: {client_config['SMTP_HOST']} on port: {client_config['SMTP_PORT']}")
+
         client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         client.connect((client_config['SMTP_HOST'], client_config['SMTP_PORT']))
 
@@ -29,24 +73,24 @@ def send_mail_smtp(client_config, message):
             response = client.recv(1024).decode("utf-8")
             logger.debug(f"   {response}")
             print(f"Server: {response}")
-        
+            
         # send MAIL_FROM message after succesful HELO (250)
         if response[:3] == "250":
-            client.send(f"{message[0].replace("From", "MAIL_FROM")}".encode("utf-8")[:1024])
+            client.send(f"MAIL {message[0]}".encode("utf-8")[:1024])
             # receive response from the server after MAIL_FROM and print
             response = client.recv(1024).decode("utf-8")
             logger.debug(f"   {response}")
             print(f"Server: {response}")
 
-        # send RCPT_TO message after succesful MAIL_FROM (250)
+        # send RCPT_TO message after succesful MAIL (250)
         if response[:3] == "250":
-            client.send(f"{message[1].replace("To", "RCPT_TO")}".encode("utf-8")[:1024])
+            client.send(f"RCPT {message[1]}".encode("utf-8")[:1024])
             # receive response from the server after RCPT_TO and print
             response = client.recv(1024).decode("utf-8")
             logger.debug(f"   {response}")
             print(f"Server: {response}")
-        
-        # send DATA message after succesful RCPT_TO (250)
+            
+        # send DATA message after succesful RCPT (250)
         if response[:3] == "250":
             client.send(f"DATA".encode("utf-8")[:1024])
             # receive response from the server after DATA and print
@@ -54,23 +98,14 @@ def send_mail_smtp(client_config, message):
             logger.debug(f"   {response}")
             print(f"Server: {response}")
 
-        ## send the mail lines after successful DATA (354)
-        #if response[:3] == "354":
-        #    for line in message:
-        #        client.send(line.encode("utf-8")[:1024])
-
-        #response = client.recv(1024).decode("utf-8")
-        #logger.debug(f"   {response}")
-        #print(f"Server: {response}")
-
-        # temporarily set response to 250 and get response after each line
-        if response[:3] == "250":
+        # send the mail lines after successful DATA (354)
+        if response[:3] == "354":
             for line in message:
                 client.send(line.encode("utf-8")[:1024])
 
-                response = client.recv(1024).decode("utf-8")
-                logger.debug(f"   {response}")
-                print(f"Server: {response}")
+            response = client.recv(1024).decode("utf-8")
+            logger.debug(f"   {response}")
+            print(f"Server: {response}")
 
         # send QUIT message after successful sending mail lines (250)
         if response[:3] == "250":
@@ -86,7 +121,7 @@ def send_mail_smtp(client_config, message):
         # close client socket (connection to the server)
         client.close()
         logger.info(f"Connection to server [{client_config['SMTP_HOST']}] on port [{client_config['SMTP_PORT']}] closed")
-
+        
 def check_mail(message):
 
     # This function checks the mail message on correct formatting
@@ -195,19 +230,14 @@ def mail_management(client_config):
     
     logger.info("Menu option - Mail Management - selected")
 
-    connect_TCP_socket(client_config['POP3_HOST'], client_config['POP3_PORT'])
-
 def mail_searching(client_config):
 
     logger.info("Menu option - Mail Searching - selected")
 
-    connect_TCP_socket(client_config['POP3_HOST'], client_config['POP3_PORT'])
-
 def get_user_credentials():
     
-    # This function requests the user name and password
-    #
-    # This function returns a dictionary with the users credentials
+    # This function requests the user name and password and
+    # returns a dictionary with the users credentials
 
     logger.info(f"Get user credentials")
 
