@@ -71,7 +71,7 @@ def handle_client_connection(server_config, client_socket, client_address, users
                         content.append(".")
 
                         logger.debug(content)
-                        #store_mail(received_commands["RCPT"], content)
+                        store_mail(received_commands["RCPT"], content)
 
                         server_response = f"250 OK Message accepted for delivery"
                         
@@ -100,9 +100,12 @@ def handle_client_connection(server_config, client_socket, client_address, users
 
 def store_mail(recipient, data):
     logger.debug(data)
-    mailbox = open(f"{os.path.join(os.path.dirname(os.path.abspath(__file__)), recipient, "my_mailbox")}")
+    mailbox = open(f"{os.path.join(os.path.dirname(os.path.abspath(__file__)), recipient, "my_mailbox")}", "a")
     for line in data:
-        mailbox.write(line)
+        mailbox.write(f"{line}\n")
+        if line.split(' ')[0] == "Subject:":
+            current_time = time.strftime("%H:%M:%S", time.localtime())
+            mailbox.write(f"Received: {current_time}\n")
 
 
 def read_user_info():

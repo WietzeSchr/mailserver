@@ -9,25 +9,60 @@ def handle_client_connection(client_socket, client_address, users):
 
     received_commands = {"USER": False, "PASS": False}
 
+    running_conversation = True
+
     try:
-        while True:
+
+        server_response = "Server: +OK POP3 server ready"
+        print(f"Server: {server_response}")
+        client_socket.send(server_response.encode("utf-8"))
+
+        while running_conversation:
             client_request = client_socket.recv(1024).decode("utf-8")
             client_request = client_request.split(' ')
 
-            if client_request[0].upper() == "USER":
-                username = client_request[1]
+            command = client_request[0].upper()
 
-                if username in users:
-                    received_commands["USER"] = username
+            match command:
 
-            if client_request[0].upper() == "PASS":
-                if received_commands["USER"] is not False:
-                    if users[received_commands["USER"]] == client_request[1]:
-                        server_response = ""
+                # Authentication phase
 
-            if client_request.lower() == "close":
-                client_socket.send("closed".encode("utf-8"))
-                break
+                case "USER":
+
+                    username = client_request[1]
+
+                    if username in users:
+                        received_commands["USER"] = username
+
+                case "PASS":
+
+                    if received_commands["USER"] is not False:
+                        if users[received_commands["USER"]] == client_request[1]:
+                            server_response = ""
+                            received_commands["PASS"] = True
+
+                            # TODO: get exclusive lock on the mailbox
+
+                case "STAT":
+                    pass
+
+                case "LIST":
+                    pass
+
+                case "RETR":
+                    pass
+
+                case "DELE":
+                    pass
+
+                case "RSET":
+                    pass
+
+                case "QUIT":
+
+                    running_conversation = False
+                    client_socket.send("closed".encode("utf-8"))
+
 
             print(f"Received request from [{client_address[0]} - {client_address[1]}]: {client_request}")
 

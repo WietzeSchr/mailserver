@@ -3,6 +3,8 @@ import argparse
 import getpass
 import re
 import logging
+import time
+
 
 def send_mail_smtp(client_config, message):
     
@@ -78,6 +80,9 @@ def send_mail_smtp(client_config, message):
             logger.debug("start sending email text")
             for line in message:
                 client.send(line.encode("utf-8")[:1024])
+
+                # wait for server
+                time.sleep(0.1)
 
             response = client.recv(1024).decode("utf-8")
             logger.debug(f"   {response}")
@@ -205,6 +210,11 @@ def mail_sending(client_config):
 def mail_management(client_config):
     
     logger.info("Menu option - Mail Management - selected")
+
+    client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    client.connect((client_config['POP3_HOST'], client_config['POP3_PORT']))
+
+
 
 def mail_searching(client_config):
 
