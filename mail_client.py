@@ -75,6 +75,7 @@ def send_mail_smtp(client_config, message):
 
         # send the mail lines after successful DATA (354)
         if response[:3] == "354":
+            logger.debug("start sending email text")
             for line in message:
                 client.send(line.encode("utf-8")[:1024])
 
