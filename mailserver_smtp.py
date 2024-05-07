@@ -61,9 +61,17 @@ def handle_client_connection(server_config, client_socket, client_address, users
 
                         content = []
                         data = client_socket.recv(1024).decode("utf-8")
+                        logger.debug(data)
                         while data != ".":
                             content.append(data)
-                        #store_mail(received_commands["RCPT"], data)
+                            print(f"data {data}")
+                            data = client_socket.recv(1024).decode("utf-8")
+                            logger.debug(data)
+
+                        content.append(".")
+
+                        logger.debug(content)
+                        store_mail(received_commands["RCPT"], content)
 
                         server_response = f"250 OK Message accepted for delivery"
                         
@@ -77,7 +85,7 @@ def handle_client_connection(server_config, client_socket, client_address, users
                 case _:
 
                     server_response = f"502 Command not implemented"
-            
+
             print(f"Server: {server_response}")
             client_socket.send(server_response.encode("utf-8"))
 
@@ -91,11 +99,14 @@ def handle_client_connection(server_config, client_socket, client_address, users
 
 
 def store_mail(recipient, data):
-    pass
+    logger.debug(data)
+    mailbox = open(f"{os.path.join(os.path.dirname(os.path.abspath(__file__)), recipient, "my_mailbox")}", "a")
+    for line in data:
+        mailbox.write(f"{line}\n")
+        if line.split(' ')[0] == "Subject:":
+            current_time = time.strftime("%H:%M:%S", time.localtime())
+            mailbox.write(f"Received: {current_time}\n")
 
-
-def user_in_domain():
-    pass
 
 def read_user_info():
 
