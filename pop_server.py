@@ -5,24 +5,30 @@ import argparse
 import logging
 import re
 
+
 def handle_client_connection(client_socket, client_address, users):
 
     received_commands = {"USER": False, "PASS": False}
 
     running_conversation = True
 
+    mailbox = None
+
     try:
 
-        server_response = "Server: +OK POP3 server ready"
+        server_response = "+OK POP3 server ready"
         print(f"Server: {server_response}")
+        logger.debug(f"server response: {server_response}")
         client_socket.send(server_response.encode("utf-8"))
+
 
         while running_conversation:
             client_request = client_socket.recv(1024).decode("utf-8")
+            print(f"Client: {client_request}")
             client_request = client_request.split(' ')
 
             command = client_request[0].upper()
-
+            logger.debug(f"{command}")
             match command:
 
                 # Authentication phase
@@ -32,7 +38,17 @@ def handle_client_connection(client_socket, client_address, users):
                     username = client_request[1]
 
                     if username in users:
+
                         received_commands["USER"] = username
+
+                        server_response = "+OK Please enter a password"
+                        logger.debug(f"server response: {server_response}")
+
+
+                    else:
+
+                        server_response = "No such user"
+                        logger.debug(f"Server response: {server_response}")
 
                 case "PASS":
 
@@ -41,10 +57,30 @@ def handle_client_connection(client_socket, client_address, users):
                             server_response = ""
                             received_commands["PASS"] = True
 
+                            server_response = "+OK valid logon"
+                            logger.debug(f"server response: {server_response}")
+
                             # TODO: get exclusive lock on the mailbox
 
+                        else:
+
+                            server_response = "Wrong password"
+                            logger.debug(f"server response: {server_response}")
+
                 case "STAT":
-                    pass
+
+                    if received_commands["PASS"]:
+
+                        # get message count and size
+                        username = received_commands["USER"]
+                        mailbox = open(f"{os.path.join(os.path.dirname(os.path.abspath(__file__)), username, "my_mailbox")}", "a")
+                        total_size = os.stat(os.path.join(os.path.dirname(os.path.abspath(__file__)), username, "my_mailbox"))
+                        total_mails = 0
+                        for line in mailbox:
+                            if line == ".":
+                                total_mails += 1
+
+                        server_response = f"+OK {total_mails} {total_size}"
 
                 case "LIST":
                     pass
@@ -63,13 +99,14 @@ def handle_client_connection(client_socket, client_address, users):
                     running_conversation = False
                     client_socket.send("closed".encode("utf-8"))
 
+                case _:
+                    server_response = f"502 Command not implemented"
 
-            print(f"Received request from [{client_address[0]} - {client_address[1]}]: {client_request}")
-
-            client_response = "accepted"
-            client_socket.send(client_response.encode("utf-8"))
+            print(f"Server: {server_response}")
+            client_socket.send(server_response.encode("utf-8"))
 
     except Exception as e:
+        logger.error(e)
         print(f"Error accepting client")
 
     finally:
@@ -159,7 +196,7 @@ if __name__ == "__main__":
     logger.setLevel(args.loglevel)
 
     # create file handler which logs even debug messages
-    fh = logging.FileHandler('mailserver_smtp.log')
+    fh = logging.FileHandler('pop_server.log')
     fh.setLevel(logging.DEBUG)
 
     # create formatter and add it to the handlers
@@ -170,7 +207,7 @@ if __name__ == "__main__":
     logger.addHandler(fh)
 
     logger.info("==============================")
-    logger.info("=   MAILSERVER SMTP          =")
+    logger.info("=   POP3 - SERVER            =")
     logger.info("==============================")
 
     users = read_user_info()

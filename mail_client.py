@@ -103,7 +103,7 @@ def send_mail_smtp(client_config, message):
         client.close()
         logger.info(f"Connection to server [{client_config['SMTP_HOST']}] on port [{client_config['SMTP_PORT']}] closed")
         
-def check_mail(message):
+def check_mail(message, user_credentials):
 
     # This function checks the mail message on correct formatting
     # The format of the mail meessage should be:
@@ -190,6 +190,36 @@ def get_mail_message():
 
     return mail_message
 
+def authenticate_pop(user_credentials, client):
+
+    client.send(f"USER {user_credentials['name']}".encode("utf-8")[:1024])
+
+    response = client.recv(1024).decode("utf-8")
+    logger.debug(f"   {response}")
+    print(f"Server: {response}")
+
+    if response == "+OK Please enter a password":
+
+        message = f"PASS {user_credentials['password']}"
+        client.send(message.encode("utf-8")[:1024])
+        logger.debug(f"Client sent: {message}")
+
+        response = client.recv(1024).decode("utf-8")
+        logger.debug(f"   {response}")
+        print(f"Server: {response}")
+
+        if response == "+OK valid logon":
+
+            return True
+
+        else:
+
+            return False
+
+    else:
+
+        return False
+
 def mail_sending(client_config):
 
     logger.info("Menu option - Mail Sending - selected")
@@ -207,18 +237,56 @@ def mail_sending(client_config):
         logger.error("   Mail format NOT OK!")
         print("This is an incorrect format")
 
-def mail_management(client_config):
+def mail_management(client_config, user_credentials):
     
     logger.info("Menu option - Mail Management - selected")
 
-    client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    client.connect((client_config['POP3_HOST'], client_config['POP3_PORT']))
+    client = None
+    try:
+        client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        client.connect((client_config['POP3_HOST'], client_config['POP3_PORT']))
 
+        response = client.recv(1024).decode("utf-8")
+        logger.debug(f"   {response}")
+        print(f"Server: {response}")
 
+        # authenticate the user
+
+        if response == "+OK POP3 server ready":
+
+            while not authenticate_pop(user_credentials, client):
+                user_credentials = get_user_credentials()
+
+        client.send("STAT".encode("utf-8")[:1024])
+
+        """    
+        response = client.recv(1024).decode("utf-8")
+        logger.debug(f"   {response}")
+        print(f"Server: {response}")"""
+
+        print("")
+        print("========================================")
+        print("   YOUR MAILS")
+        print("========================================")
+        print("")
+        # TODO: send list command LIST command
+
+        while True:
+            pass
+
+    except Exception as e:
+        print(f"Error: {e}")
+
+    finally:
+        # close client socket (connection to the server)
+        client.close()
+        logger.info(
+            f"Connection to server [{client_config['SMTP_HOST']}] on port [{client_config['SMTP_PORT']}] closed")
 
 def mail_searching(client_config):
 
     logger.info("Menu option - Mail Searching - selected")
+
 
 def get_user_credentials():
     
@@ -304,7 +372,7 @@ if __name__ == "__main__":
             case "a":
                 mail_sending(client_config)
             case "b":
-                mail_management(client_config)
+                mail_management(client_config, user_credentials)
             case "c":
                 mail_searching(client_config)
             case "d":
