@@ -190,6 +190,18 @@ def get_mail_message():
 
     return mail_message
 
+def mail_searching_words(client, user_credentials):
+
+    pass
+
+def mail_searching_senders(client, user_credentials):
+
+    pass
+
+def mail_searching_date(client, user_credentials):
+
+    pass
+
 def authenticate_pop(user_credentials, client):
 
     client.send(f"USER {user_credentials['name']}".encode("utf-8")[:1024])
@@ -358,10 +370,50 @@ def mail_management(client_config, user_credentials):
         logger.info(
             f"Connection to server [{client_config['SMTP_HOST']}] on port [{client_config['SMTP_PORT']}] closed")
 
-def mail_searching(client_config):
+def mail_searching(client_config, user_credentials):
 
     logger.info("Menu option - Mail Searching - selected")
 
+    client = None
+    try:
+        client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        client.connect((client_config['POP3_HOST'], client_config['POP3_PORT']))
+
+        response = client.recv(1024).decode("utf-8")
+        logger.debug(f"   {response}")
+        print(f"Server: {response}")
+
+        # authenticate the user
+
+        if response == "+OK POP3 server ready":
+
+            while not authenticate_pop(user_credentials, client):
+                user_credentials = get_user_credentials()
+        display_search_menu()
+
+        menu_option = ""
+
+        while (not menu_option == "d"):
+            # display menu
+            display_menu()
+
+            menu_option = input("Option: ")
+
+            match menu_option:
+                case "a":
+                    mail_searching_words(client, user_credentials)
+                case "b":
+                    mail_searching_senders(client, user_credentials)
+                case "c":
+                    mail_searching_date(client, user_credentials)
+                case "d":
+                    exit(0)
+                case _:
+                    print("Invalid option!")
+
+
+    except Exception as e:
+        print(f"Error: {e}")
 
 def get_user_credentials():
     
@@ -407,6 +459,19 @@ def display_management_options():
     print("QUIT - close connection")
     print("")
     print(">")
+
+def display_search_menu():
+
+    print("")
+    print("========================================")
+    print("   MAIL CLIENT")
+    print("========================================")
+    print("")
+    print("   a)   Mail Search on words")
+    print("   b)   Mail Search on senders id")
+    print("   c)   Mail Search on date")
+    print("   d)   Exit")
+    print("")
 
 
 if __name__ == "__main__":
@@ -463,7 +528,7 @@ if __name__ == "__main__":
             case "b":
                 mail_management(client_config, user_credentials)
             case "c":
-                mail_searching(client_config)
+                mail_searching(client_config, user_credentials)
             case "d":
                 exit(0)
             case _:
