@@ -6,6 +6,7 @@ import logging
 import argparse
 import re
 import os
+import sys
 
 def handle_client_connection(client_socket, client_address):
     received_commands = {"USER": False, "PASS": False}
@@ -160,13 +161,13 @@ def handle_client_connection(client_socket, client_address):
 
                         else:
 
-                            server_response = f"No mail with given index"
+                            server_response = f"-ERR no such message"
                             print(f"Server: {server_response}")
                             client_socket.send(server_response.encode("utf-8"))
 
                     else:
 
-                        server_response = "not authenticated"
+                        server_response = "-ERR not authenticated"
                         print(f"Server: {server_response}")
                         client_socket.send(server_response.encode("utf-8"))
 
@@ -183,13 +184,13 @@ def handle_client_connection(client_socket, client_address):
 
                         else:
 
-                            server_response = "No mail with given index"
+                            server_response = "-ERR no such message"
                             print(f"Server: {server_response}")
                             client_socket.send(server_response.encode("utf-8"))
 
                     else:
 
-                        server_response = "not authenticated"
+                        server_response = "-ERR not authenticated"
                         print(f"Server: {server_response}")
                         client_socket.send(server_response.encode("utf-8"))
 
@@ -208,7 +209,7 @@ def handle_client_connection(client_socket, client_address):
 
                     else:
 
-                        server_response = "not authenticated"
+                        server_response = "-ERR not authenticated"
                         print(f"Server: {server_response}")
                         client_socket.send(server_response.encode("utf-8"))
 
@@ -232,6 +233,33 @@ def handle_client_connection(client_socket, client_address):
     finally:
         client_socket.close()
         print(f"The connection to client {client_address[0]} on port {client_address[1]} has been closed!")
+
+def get_size(obj, seen=None):
+
+    # Function to get the size of a python object
+    size = sys.getsizeof(obj)
+    
+    if seen is None:
+        seen = set()
+
+    obj_id = id(obj)
+    
+    if obj_id in seen:
+        return 0
+    
+    seen.add(obj_id)
+    
+    if isinstance(obj, dict):
+        size += sum([get_size(v, seen) for v in obj.values()])
+        size += sum([get_size(k, seen) for k in obj.keys()])
+    
+    elif hasattr(obj, '__dict__'):
+        size += get_size(obj.__dict__, seen)
+    
+    elif hasattr(obj, '__iter__') and not isinstance(obj, (str, bytes, bytearray)):
+        size += sum([get_size(i, seen) for i in obj])
+    
+    return size
 
 def write_mailbox_file(mailbox):
 
@@ -323,8 +351,8 @@ def read_mailbox(user):
                     mail_count += 1
                     mailbox['message_count'] += 1
 
-                    mail['message_size'] = mail.__sizeof__()
-                    mailbox["total_size"] += mail.__sizeof__()
+                    mail['message_size'] = get_size(mail)
+                    mailbox["total_size"] += get_size(mail)
 
                     logger.debug(mail)
                     mailbox['mailbox_messages'][str(mail_count)] = mail
