@@ -103,7 +103,7 @@ def send_mail_smtp(client_config, message):
         client.close()
         logger.info(f"Connection to server [{client_config['SMTP_HOST']}] on port [{client_config['SMTP_PORT']}] closed")
         
-def check_mail(message, user_credentials):
+def check_mail(message):
 
     # This function checks the mail message on correct formatting
     # The format of the mail meessage should be:
@@ -257,43 +257,99 @@ def mail_management(client_config, user_credentials):
             while not authenticate_pop(user_credentials, client):
                 user_credentials = get_user_credentials()
 
-        client.send("STAT".encode("utf-8")[:1024])
+        client.send("LIST".encode("utf-8"))
 
-        """    
         response = client.recv(1024).decode("utf-8")
-        logger.debug(f"   {response}")
-        print(f"Server: {response}")"""
 
-        print("")
-        print("========================================")
-        print("   YOUR MAILS")
-        print("========================================")
-        print("")
-        # TODO: send list command LIST command
+        if response == "+OK":
 
-        while True:
-            pop3_command = input()
-            match pop3_command:
+            print("")
+            print("========================================")
+            print("   YOUR MAILS")
+            print("========================================")
+            print("")
+
+            response = client.recv(1024).decode("utf-8")
+
+            while not response == ".":
+
+                logger.debug(f"Mail: {response}")
+                print(f"    {response}")
+                response = client.recv(1024).decode("utf-8")
+
+            display_management_options()
+
+        running_conversation = True
+        while running_conversation:
+
+            line = input()
+            pop3_command = line.split(' ')
+
+            match pop3_command[0]:
+
+                case "STAT":
+
+                    client.send(line.encode("utf-8"))
+                    response = client.recv(1024).decode("utf-8")
+                    print(f"Server: {response}")
 
                 case "LIST":
 
-                    pass
+                    client.send(line.encode("utf-8"))
+                    response = client.recv(1024).decode("utf-8")
+                    if response == "+OK":
+
+                        print("")
+                        print("========================================")
+                        print("   YOUR MAILS")
+                        print("========================================")
+                        print("")
+
+                        response = client.recv(1024).decode("utf-8")
+                        while not response == ".":
+                            logger.debug(f"Mail: {response}")
+                            print(f"    {response}")
+                            response = client.recv(1024).decode("utf-8")
 
                 case "RETR":
 
-                    pass
+                    client.send(line.encode("utf-8"))
+                    time.sleep(0.1)
+                    response = client.recv(1024).decode("utf-8")
+                    print(f"Server: {response}")
+                    if response[:3] == "+OK":
+
+                        linecount = int(response.split(' ')[-2])
+                        mail = []
+
+                        for i in range(linecount):
+
+                            mail_line = client.recv(1024).decode("utf-8")
+                            mail.append(mail_line)
+
+                        for line in mail:
+
+                            print(line)
 
                 case "DELE":
 
-                    pass
+                    client.send(line.encode("utf-8"))
+                    response = client.recv(1024).decode("utf-8")
+                    print(f"Server: {response}")
 
                 case "RSET":
 
-                    pass
+                    client.send(line.encode("utf-8"))
+                    response = client.recv(1024).decode("utf-8")
+                    print(f"Server: {response}")
 
                 case "QUIT":
 
-                    pass
+                    client.send(line.encode("utf-8"))
+                    response = client.recv(1024).decode("utf-8")
+                    print(f"Server: {response}")
+                    if response == "closed":
+                        running_conversation = False
 
                 case _:
 
@@ -344,7 +400,21 @@ def display_menu():
     print("   c)   Mail Searching")
     print("   d)   Exit")
     print("")
-    
+
+def display_management_options():
+
+    print("")
+    print("Possible commands:")
+    print("LIST - lists all mails")
+    print("STAT - returns +OK <mail_count> <total_size>")
+    print("RETR <Mail_index> - retrieves mail with given index")
+    print("DELE <Mail_index> - deletes mail with given index on the server")
+    print("RSET - reset mails that were marked deleted")
+    print("QUIT - close connection")
+    print("")
+    print(">")
+
+
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description='Get commandline arguments')

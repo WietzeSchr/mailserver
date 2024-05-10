@@ -12,7 +12,7 @@ def handle_client_connection(client_socket, client_address):
 
     running_conversation = True
 
-    mailbox = None
+    mailbox = {}
 
     try:
 
@@ -42,12 +42,16 @@ def handle_client_connection(client_socket, client_address):
                         received_commands["USER"] = username
 
                         server_response = "+OK Please enter a password"
+                        print(f"Server: {server_response}")
+                        client_socket.send(server_response.encode("utf-8"))
                         logger.debug(f"server response: {server_response}")
 
 
                     else:
 
                         server_response = "No such user"
+                        print(f"Server: {server_response}")
+                        client_socket.send(server_response.encode("utf-8"))
                         logger.debug(f"Server response: {server_response}")
 
                 case "PASS":
@@ -58,13 +62,19 @@ def handle_client_connection(client_socket, client_address):
                             received_commands["PASS"] = True
 
                             server_response = "+OK valid logon"
+                            print(f"Server: {server_response}")
+                            client_socket.send(server_response.encode("utf-8"))
                             logger.debug(f"server response: {server_response}")
+
+                            mailbox = read_mailbox(received_commands["USER"])
 
                             # TODO: get exclusive lock on the mailbox
 
                         else:
 
                             server_response = "Wrong password"
+                            print(f"Server: {server_response}")
+                            client_socket.send(server_response.encode("utf-8"))
                             logger.debug(f"server response: {server_response}")
 
                 case "STAT":
@@ -73,28 +83,115 @@ def handle_client_connection(client_socket, client_address):
 
                         # get message count and size
                         username = received_commands["USER"]
-                        mailbox = f"{os.path.join(os.path.dirname(os.path.abspath(__file__)), username, "my_mailbox")}"
-                        
-                        with open
-                        total_size = os.stat(os.path.join(os.path.dirname(os.path.abspath(__file__)), username, "my_mailbox"))
-                        total_mails = 0
-                        for line in mailbox:
-                            if line == ".":
-                                total_mails += 1
+                        mailbox_file = f"{os.path.join(os.path.dirname(os.path.abspath(__file__)), username, "my_mailbox")}"
+                        total_size = os.stat(mailbox_file).st_size
+                        total_mails = len(mailbox.keys())
 
                         server_response = f"+OK {total_mails} {total_size}"
+                        print(f"Server: {server_response}")
+                        client_socket.send(server_response.encode("utf-8"))
 
                 case "LIST":
-                    pass
+
+                    if received_commands["PASS"]:
+
+                        server_response = "+OK"
+                        print(f"Server: {server_response}")
+                        client_socket.send(server_response.encode("utf-8"))
+
+                        logger.debug(f"Server: Listing {len(mailbox.keys())} mails")
+
+                        for mail_id in mailbox.keys():
+
+                            if not mailbox[mail_id]['to_be_deleted']:
+                                line = f"{mail_id}. From: {mailbox[mail_id]['from']} Received: {mailbox[mail_id]['received']} Subject: {mailbox[mail_id]['subject']}"
+                                logger.debug(f"mail: {line}")
+                                client_socket.send(line.encode("utf-8"))
+                                time.sleep(0.1)
+
+                        client_socket.send(".".encode("utf-8"))
+
+                        logger.debug("Server: done listing emails")
 
                 case "RETR":
-                    pass
+
+                    if received_commands["PASS"]:
+
+                        logger.debug(client_request)
+                        logger.debug(f"{client_request[1]}, {list(mailbox.keys())}")
+                        logger.debug(f"mailbox {mailbox}")
+
+                        if int(client_request[1] in list(mailbox.keys())) and not mailbox[client_request[1]]['to_be_deleted']:
+
+                            linecount = 2 + len(mailbox[client_request[1]]['message_body'])
+                            server_response = f"+OK retrieving mail containing {linecount} lines"
+                            print(f"Server: {server_response}")
+                            client_socket.send(server_response.encode("utf-8"))
+                            time.sleep(0.1)
+
+                            client_socket.send(f"From: {mailbox[client_request[1]]['from']}".encode("utf-8"))
+                            time.sleep(0.1)
+                            #client_socket.send(f"Received: {mailbox[client_request[1]]['to']}")
+                            #time.sleep(0.1)
+                            client_socket.send(f"Subject: {mailbox[client_request[1]]['from']}".encode("utf-8"))
+                            time.sleep(0.1)
+
+                            for line in mailbox[client_request[1]]['message_body']:
+                                client_socket.send(line.encode("utf-8"))
+                                time.sleep(0.1)
+                        else:
+
+                            server_response = f"No mail with given index"
+                            print(f"Server: {server_response}")
+                            client_socket.send(server_response.encode("utf-8"))
+
+                    else:
+
+                        server_response = "not authenticated"
+                        print(f"Server: {server_response}")
+                        client_socket.send(server_response.encode("utf-8"))
 
                 case "DELE":
-                    pass
+
+                    if received_commands["PASS"]:
+
+                        if client_request[1] in mailbox.keys():
+
+                            mailbox[client_request[1]]['to_be_deleted'] = True
+                            server_response = "+OK"
+                            print(f"Server: {server_response}")
+                            client_socket.send(server_response.encode("utf-8"))
+
+                        else:
+
+                            server_response = "No mail with given index"
+                            print(f"Server: {server_response}")
+                            client_socket.send(server_response.encode("utf-8"))
+
+                    else:
+
+                        server_response = "not authenticated"
+                        print(f"Server: {server_response}")
+                        client_socket.send(server_response.encode("utf-8"))
 
                 case "RSET":
-                    pass
+
+                    if received_commands["PASS"]:
+
+                        for mail_id in mailbox.keys():
+
+                            mail = mailbox[mail_id]
+                            mail['to_be_deleted'] = False
+
+                        server_response = "+OK"
+                        print(f"Server: {server_response}")
+                        client_socket.send(server_response.encode("utf-8"))
+
+                    else:
+
+                        server_response = "not authenticated"
+                        print(f"Server: {server_response}")
+                        client_socket.send(server_response.encode("utf-8"))
 
                 case "QUIT":
 
@@ -103,9 +200,8 @@ def handle_client_connection(client_socket, client_address):
 
                 case _:
                     server_response = f"502 Command not implemented"
-
-            print(f"Server: {server_response}")
-            client_socket.send(server_response.encode("utf-8"))
+                    print(f"Server: {server_response}")
+                    client_socket.send(server_response.encode("utf-8"))
 
     except Exception as e:
         logger.error(e)
@@ -138,7 +234,7 @@ def read_mailbox(user):
     logger.info("Process - read-mailbox")
 
     try:
-        mailbox_file = f"{os.path.join(os.path.dirname(os.path.abspath(__file__)), username, "my_mailbox")}"
+        mailbox_file = f"{os.path.join(os.path.dirname(os.path.abspath(__file__)), user, "my_mailbox")}"
 
         with open(mailbox_file, 'r') as m:
             mailbox_lines = m.readlines()
@@ -148,13 +244,49 @@ def read_mailbox(user):
         mail_count = 0
 
         if len(mailbox_lines) > 0:
-            mailcount = mailcount + 1
+
+            mail = {"from": None, "to": None, "received": None, "subject": None, "message_body": [], "message_size": 0, "to_be_deleted": False}
 
             for line in mailbox_lines:
 
-                line = line.strip()
+                if line == ".":
+
+                    mail_count += 1
+                    mailbox[str(mail_count)] = mail
+
+                    logger.debug(mail)
+                    logger.debug(f"current mail count {mail_count}")
 
 
+                else:
+
+                    line_split = line.split(' ')
+
+                    if line_split[0].lower() == "from:":
+
+                        mail["from"] = line[6:-1]
+
+                    elif line_split[0].lower() == "to:":
+
+                        mail["to"] = line[4:-1]
+
+                    elif line_split[0].lower() == "received:":
+
+                        mail["received"] = line[10:-1]
+
+                    elif line_split[0].lower() == "subject:":
+
+                        mail["subject"] = line[9:-1]
+
+                    else:
+
+                        mail["message_body"].append(line[:-1])
+
+            return mailbox
+
+    except Exception as e:
+        logger.error(e)
+        print(f"Error: {e}")
                         
 def read_user_info():
 
