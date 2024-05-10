@@ -110,6 +110,7 @@ def store_mail(recipient, data):
         mailbox.write(f"{line}\n")
 
         if line.split(' ')[0] == "Subject:":
+            now = datetime.datetime.now()
             current_datetime = now.strftime("%d/%m/%Y %H:%M")
             mailbox.write(f"Received: {current_datetime}\n")
 

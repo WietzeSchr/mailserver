@@ -83,9 +83,8 @@ def handle_client_connection(client_socket, client_address):
 
                         # get message count and size
                         username = received_commands["USER"]
-                        mailbox_file = f"{os.path.join(os.path.dirname(os.path.abspath(__file__)), username, "my_mailbox")}"
-                        total_size = os.stat(mailbox_file).st_size
-                        total_mails = len(mailbox.keys())
+                        total_size = mailbox['total_size']
+                        total_mails = mailbox['message_count']
 
                         server_response = f"+OK {total_mails} {total_size}"
                         print(f"Server: {server_response}")
@@ -98,13 +97,13 @@ def handle_client_connection(client_socket, client_address):
                         server_response = "+OK"
                         print(f"Server: {server_response}")
                         client_socket.send(server_response.encode("utf-8"))
+                        logger.debug(mailbox)
+                        logger.debug(f"Server: Listing {mailbox['message_count']} mails")
 
-                        logger.debug(f"Server: Listing {len(mailbox.keys())} mails")
+                        for mail_id in mailbox['mailbox_messages'].keys():
 
-                        for mail_id in mailbox.keys():
-
-                            if not mailbox[mail_id]['to_be_deleted']:
-                                line = f"{mail_id}. From: {mailbox[mail_id]['from']} Received: {mailbox[mail_id]['received']} Subject: {mailbox[mail_id]['subject']}"
+                            if not mailbox['mailbox_messages'][mail_id]['to_be_deleted']:
+                                line = f"{mail_id}. From: {mailbox['mailbox_messages'][mail_id]['from']} Received: {mailbox['mailbox_messages'][mail_id]['received']} Subject: {mailbox['mailbox_messages'][mail_id]['subject']} Size: {mailbox['mailbox_messages'][mail_id]['message_size']}"
                                 logger.debug(f"mail: {line}")
                                 client_socket.send(line.encode("utf-8"))
                                 time.sleep(0.1)
@@ -118,27 +117,47 @@ def handle_client_connection(client_socket, client_address):
                     if received_commands["PASS"]:
 
                         logger.debug(client_request)
-                        logger.debug(f"{client_request[1]}, {list(mailbox.keys())}")
+                        logger.debug(f"{client_request[1]}, {list(mailbox['mailbox_messages'].keys())}")
                         logger.debug(f"mailbox {mailbox}")
 
-                        if int(client_request[1] in list(mailbox.keys())) and not mailbox[client_request[1]]['to_be_deleted']:
-
-                            linecount = 2 + len(mailbox[client_request[1]]['message_body'])
+                        if client_request[1] in list(mailbox['mailbox_messages'].keys()) and not mailbox['mailbox_messages'][client_request[1]]['to_be_deleted']:
+                            
+                            linecount = 2 + len(mailbox['mailbox_messages'][client_request[1]]['message_body'])
                             server_response = f"+OK retrieving mail containing {linecount} lines"
                             print(f"Server: {server_response}")
+                            logger.debug(server_response)
                             client_socket.send(server_response.encode("utf-8"))
                             time.sleep(0.1)
 
-                            client_socket.send(f"From: {mailbox[client_request[1]]['from']}".encode("utf-8"))
-                            time.sleep(0.1)
-                            #client_socket.send(f"Received: {mailbox[client_request[1]]['to']}")
-                            #time.sleep(0.1)
-                            client_socket.send(f"Subject: {mailbox[client_request[1]]['from']}".encode("utf-8"))
+                            server_response = f"From: {mailbox['mailbox_messages'][client_request[1]]['from']}"
+                            logger.debug(server_response)
+                            client_socket.send(server_response.encode("utf-8"))
                             time.sleep(0.1)
 
-                            for line in mailbox[client_request[1]]['message_body']:
+                            server_response = f"To: {mailbox['mailbox_messages'][client_request[1]]['to']}"
+                            logger.debug(server_response)
+                            client_socket.send(server_response.encode("utf-8"))
+                            time.sleep(0.1)
+
+                            server_response = f"Received: {mailbox['mailbox_messages'][client_request[1]]['received']}"
+                            logger.debug(server_response)
+                            client_socket.send(server_response.encode("utf-8"))
+                            time.sleep(0.1)
+
+                            server_response = f"Subject: {mailbox['mailbox_messages'][client_request[1]]['subject']}"
+                            logger.debug(server_response)
+                            client_socket.send(server_response.encode("utf-8"))
+                            time.sleep(0.1)
+
+                            for line in mailbox['mailbox_messages'][client_request[1]]['message_body']:
+                                logger.debug(line)
                                 client_socket.send(line.encode("utf-8"))
                                 time.sleep(0.1)
+                            
+                            server_response = "."
+                            logger.debug(server_response)
+                            client_socket.send(server_response.encode("utf-8"))
+
                         else:
 
                             server_response = f"No mail with given index"
@@ -155,9 +174,9 @@ def handle_client_connection(client_socket, client_address):
 
                     if received_commands["PASS"]:
 
-                        if client_request[1] in mailbox.keys():
-
-                            mailbox[client_request[1]]['to_be_deleted'] = True
+                        if client_request[1] in mailbox['mailbox_messages'].keys():
+                            mailbox['deleted_messages'] = True
+                            mailbox['mailbox_messages'][client_request[1]]['to_be_deleted'] = True
                             server_response = "+OK"
                             print(f"Server: {server_response}")
                             client_socket.send(server_response.encode("utf-8"))
@@ -177,10 +196,10 @@ def handle_client_connection(client_socket, client_address):
                 case "RSET":
 
                     if received_commands["PASS"]:
+                        mailbox['deleted_messages'] = False
+                        for mail_id in mailbox['mailbox_messages'].keys():
 
-                        for mail_id in mailbox.keys():
-
-                            mail = mailbox[mail_id]
+                            mail = mailbox['mailbox_messages'][mail_id]
                             mail['to_be_deleted'] = False
 
                         server_response = "+OK"
@@ -194,6 +213,9 @@ def handle_client_connection(client_socket, client_address):
                         client_socket.send(server_response.encode("utf-8"))
 
                 case "QUIT":
+
+                    if mailbox['deleted_messages']:
+                        write_mailbox_file(mailbox)
 
                     running_conversation = False
                     client_socket.send("closed".encode("utf-8"))
@@ -211,25 +233,61 @@ def handle_client_connection(client_socket, client_address):
         client_socket.close()
         print(f"The connection to client {client_address[0]} on port {client_address[1]} has been closed!")
 
+def write_mailbox_file(mailbox):
+
+    logger.info("Process - write_mailbox_file")
+    logger.debug(f"   Writing mailbox for user [{mailbox['user']}]")
+
+    try:
+
+        mailbox_file = f"{os.path.join(os.path.dirname(os.path.abspath(__file__)), mailbox['user'], "my_mailbox")}"
+
+        with open(mailbox_file, 'w') as m:
+
+            for mail in mailbox['mailbox_messages']:
+                
+                if not mailbox['mailbox_messages'][str(mail)]['to_be_deleted']:
+
+                    m.write(f"From: {mailbox['mailbox_messages'][str(mail)]['from']}\n")
+                    m.write(f"To: {mailbox['mailbox_messages'][str(mail)]['to']}\n")
+                    m.write(f"Subject: {mailbox['mailbox_messages'][str(mail)]['subject']}\n")
+                    m.write(f"Received: {mailbox['mailbox_messages'][str(mail)]['received']}\n")
+
+                    for line in mailbox['mailbox_messages'][str(mail)]['message_body']:
+                        m.write(f"{line}\n")
+                    
+                    m.write(".\n")
+
+        m.close()
+
+    except Exception as e:
+        logger.error(e)
+        print(e)
+
 def read_mailbox(user):
 
     """
-    mailbox_messages
-	1
-		from		sender
-		to		receiver
-		received	datetime
-		message_body	[]
-		message_size	9999
-		to_be_deleted	True/False
-	2
-		from		sender
-		to		receiver
-		received	datetime
-		message_body	[]
-		message_size	9999
-		to_be_deleted	True/False
-	...
+    mailbox
+        user
+        message_count
+        total_size
+        deleted_messages
+        mailbox_messages
+            1
+                from		sender
+                to		receiver
+                received	datetime
+                message_body	[]
+                message_size	9999
+                to_be_deleted	True/False
+            2
+                from		sender
+                to		receiver
+                received	datetime
+                message_body	[]
+                message_size	9999
+                to_be_deleted	True/False
+            ...
     """
     logger.info("Process - read-mailbox")
 
@@ -239,7 +297,14 @@ def read_mailbox(user):
         with open(mailbox_file, 'r') as m:
             mailbox_lines = m.readlines()
 
+        m.close()
+
         mailbox = {}
+        mailbox['user'] = user
+        mailbox['total_size'] = 0
+        mailbox['message_count'] = 0
+        mailbox['deleted_messages'] = False
+        mailbox['mailbox_messages'] = {}
 
         mail_count = 0
 
@@ -248,39 +313,48 @@ def read_mailbox(user):
             mail = {"from": None, "to": None, "received": None, "subject": None, "message_body": [], "message_size": 0, "to_be_deleted": False}
 
             for line in mailbox_lines:
+                
+                line = line.strip()
+                logger.debug(f"   >>> {line}")
 
                 if line == ".":
-
+                    logger.debug("   this is a . line")
+                    
                     mail_count += 1
-                    mailbox[str(mail_count)] = mail
+                    mailbox['message_count'] += 1
+
+                    mail['message_size'] = mail.__sizeof__()
+                    mailbox["total_size"] += mail.__sizeof__()
 
                     logger.debug(mail)
-                    logger.debug(f"current mail count {mail_count}")
+                    mailbox['mailbox_messages'][str(mail_count)] = mail
 
+                    logger.debug(f"current mail count {mail_count}")
+                    mail = {"from": None, "to": None, "received": None, "subject": None, "message_body": [], "message_size": 0, "to_be_deleted": False}
 
                 else:
 
                     line_split = line.split(' ')
 
                     if line_split[0].lower() == "from:":
-
-                        mail["from"] = line[6:-1]
+                        logger.debug("   this is a FROM line")
+                        mail["from"] = line[6:]
 
                     elif line_split[0].lower() == "to:":
-
-                        mail["to"] = line[4:-1]
+                        logger.debug("   this is a TO line")
+                        mail["to"] = line[4:]
 
                     elif line_split[0].lower() == "received:":
-
-                        mail["received"] = line[10:-1]
+                        logger.debug("   this is a RECEIVED line")
+                        mail["received"] = line[10:]
 
                     elif line_split[0].lower() == "subject:":
-
-                        mail["subject"] = line[9:-1]
+                        logger.debug("   this is a SUBJECT line")
+                        mail["subject"] = line[9:]
 
                     else:
-
-                        mail["message_body"].append(line[:-1])
+                        logger.debug("   this is a MESSAGE BODY line")
+                        mail["message_body"].append(line)
 
             return mailbox
 
@@ -301,6 +375,8 @@ def read_user_info():
             # Read the text file into a list of lines  
             lines = f.readlines() 
     
+        f.close()
+
         # Create an empty dictionary 
         users = {} 
         

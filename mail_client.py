@@ -319,17 +319,11 @@ def mail_management(client_config, user_credentials):
                     print(f"Server: {response}")
                     if response[:3] == "+OK":
 
-                        linecount = int(response.split(' ')[-2])
-                        mail = []
-
-                        for i in range(linecount):
-
-                            mail_line = client.recv(1024).decode("utf-8")
-                            mail.append(mail_line)
-
-                        for line in mail:
-
-                            print(line)
+                        response = client.recv(1024).decode("utf-8")
+                        while not response == ".":
+                            logger.debug(response)
+                            print(response)
+                            response = client.recv(1024).decode("utf-8")
 
                 case "DELE":
 
