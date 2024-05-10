@@ -272,7 +272,32 @@ def mail_management(client_config, user_credentials):
         # TODO: send list command LIST command
 
         while True:
-            pass
+            pop3_command = input()
+            match pop3_command:
+
+                case "LIST":
+
+                    pass
+
+                case "RETR":
+
+                    pass
+
+                case "DELE":
+
+                    pass
+
+                case "RSET":
+
+                    pass
+
+                case "QUIT":
+
+                    pass
+
+                case _:
+
+                    print("Invalid command!")
 
     except Exception as e:
         print(f"Error: {e}")

@@ -1,7 +1,7 @@
 import socket
 import threading
 import argparse
-import time
+import datetime
 import logging
 import argparse
 import re
@@ -110,10 +110,8 @@ def store_mail(recipient, data):
         mailbox.write(f"{line}\n")
 
         if line.split(' ')[0] == "Subject:":
-            current_time = time.strftime("%H:%M:%S", time.localtime())
-            logger.debug(f"")
-            mailbox.write(f"Received: {current_time}\n")
-
+            current_datetime = now.strftime("%d/%m/%Y %H:%M")
+            mailbox.write(f"Received: {current_datetime}\n")
 
 def read_user_info():
 
