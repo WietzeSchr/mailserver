@@ -1,0 +1,15 @@
+2024-05-11 14:35:28,397 - INFO     - ==============================
+2024-05-11 14:35:28,397 - INFO     - =   MAILSERVER SMTP          =
+2024-05-11 14:35:28,397 - INFO     - ==============================
+2024-05-11 14:35:28,397 - INFO     - 
+2024-05-11 14:35:28,397 - INFO     - Mailserver SMTP config:
+2024-05-11 14:35:28,397 - INFO     -    WORKING_DIR: [C:\Users\frank\OneDrive\Documents\git\mailserver]
+2024-05-11 14:35:28,397 - INFO     -    LOG_DIR: [C:\Users\frank\OneDrive\Documents\git\mailserver\logfiles]
+2024-05-11 14:35:28,397 - INFO     -    MAILBOX_DIR: [C:\Users\frank\OneDrive\Documents\git\mailserver\mailboxes]
+2024-05-11 14:35:28,397 - INFO     -    HOST: [127.0.0.1]
+2024-05-11 14:35:28,397 - INFO     -    PORT: [25]
+2024-05-11 14:35:28,399 - INFO     - Reading user information
+2024-05-11 14:35:28,399 - INFO     -    File containing all users and passwords: [C:\Users\frank\OneDrive\Documents\git\mailserver\userinfo.txt]
+2024-05-11 14:35:28,400 - DEBUG    -    {'frankie': 'frankie123', 'wietze': 'wietze123'}
+2024-05-11 14:35:28,400 - INFO     - Run SMTP mailserver
+2024-05-11 14:35:28,400 - INFO     -    Server running on 127.0.0.1 listening on port 25

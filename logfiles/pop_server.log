@@ -1,0 +1,15 @@
+2024-05-11 14:35:28,693 - INFO     - ==============================
+2024-05-11 14:35:28,693 - INFO     - =   MAILSERVER POP3          =
+2024-05-11 14:35:28,693 - INFO     - ==============================
+2024-05-11 14:35:28,693 - INFO     - 
+2024-05-11 14:35:28,693 - INFO     - Mailserver POP3 config:
+2024-05-11 14:35:28,693 - INFO     -    WORKING_DIR: [C:\Users\frank\OneDrive\Documents\git\mailserver]
+2024-05-11 14:35:28,693 - INFO     -    LOG_DIR: [C:\Users\frank\OneDrive\Documents\git\mailserver\logfiles]
+2024-05-11 14:35:28,693 - INFO     -    MAILBOX_DIR: [C:\Users\frank\OneDrive\Documents\git\mailserver\mailboxes]
+2024-05-11 14:35:28,697 - INFO     -    HOST: [127.0.0.1]
+2024-05-11 14:35:28,697 - INFO     -    PORT: [110]
+2024-05-11 14:35:28,697 - INFO     - Reading user information
+2024-05-11 14:35:28,697 - INFO     -    File containing all users and passwords: [C:\Users\frank\OneDrive\Documents\git\mailserver\userinfo.txt]
+2024-05-11 14:35:28,697 - DEBUG    -    {'frankie': 'frankie123', 'wietze': 'wietze123'}
+2024-05-11 14:35:28,697 - INFO     - Run POP3 mailserver
+2024-05-11 14:35:28,699 - INFO     -    Server running on [127.0.0.1] listening on port [110]
