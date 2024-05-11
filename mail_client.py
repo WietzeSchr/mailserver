@@ -190,17 +190,57 @@ def get_mail_message():
 
     return mail_message
 
-def mail_searching_words(client, user_credentials):
+def mail_searching_words(mail_messages):
 
-    pass
+    logger.info("Process - mail_searching_words")
 
-def mail_searching_senders(client, user_credentials):
+    search_string = input("input: ")
+    logger.debug(f"   Input: {search_string}")
 
-    pass
+    print("output:")
 
-def mail_searching_date(client, user_credentials):
+    for message in mail_messages:
+        logger.debug(f">>> {mail_messages[message]}")
+        string_found = False
 
-    pass
+        for key, value in mail_messages[message].items():
+            logger.debug(f"   >>> searching in : {key} [{value}]")
+            
+            if search_string in value:
+                string_found = True
+        
+        if string_found:
+            logger.debug(f"   Found: {mail_messages[message]}")
+            print(mail_messages[message])
+
+
+def mail_searching_senders(mail_messages):
+
+    logger.info("Process - mail_searching_senders")
+
+    search_sender = input("input: ")
+    logger.debug(f"   Input: {search_sender}")
+
+    print("output:")
+
+    for message in mail_messages:
+        if mail_messages[message]['from'] == search_sender:
+            logger.debug(f"   Found: {mail_messages[message]}")
+            print(mail_messages[message])
+
+def mail_searching_date(mail_messages):
+
+    logger.info("Process - mail_searching_date")
+
+    search_date = input("input (DD/MM/YYYY): ")
+    logger.debug(f"   Input: {search_date}")
+
+    print("output:")
+
+    for message in mail_messages:
+        if mail_messages[message]['received'].split(' ')[0] == search_date:
+            logger.debug(f"   Found: {mail_messages[message]}")
+            print(mail_messages[message])
 
 def authenticate_pop(user_credentials, client):
 
@@ -389,23 +429,63 @@ def mail_searching(client_config, user_credentials):
 
             while not authenticate_pop(user_credentials, client):
                 user_credentials = get_user_credentials()
-        display_search_menu()
+        
+        client.send("STAT".encode("utf-8"))
+        response = client.recv(1024).decode("utf-8")
+        
+        rc, message_count, mailbox_size = response.split(' ')
+
+        mail_messages = {}
+
+        for i in range(1, int(message_count) + 1):
+            mail = {}
+            mail['from'] = ""
+            mail['to'] = ""
+            mail['subject'] = ""
+            mail['received'] = ""
+            mail['message'] = ""
+
+            client.send(f"RETR {i}".encode("utf-8"))
+            time.sleep(0.1)
+            response = client.recv(1024).decode("utf-8")
+
+            if response[:3] == "+OK":
+                response = client.recv(1024).decode("utf-8")
+                while not response == ".":
+
+                    if response[0:6] == "From: ":
+                        mail['from'] = response[6:]
+                    elif response[0:4] == "To: ":
+                        mail['to'] = response[4:]
+                    elif response[0:9] == "Subject: ":
+                        mail['subject'] = response[9:]
+                    elif response[0:10] == "Received: ":
+                        mail['received'] = response[10:]
+                    else:
+                        mail['message'] += f"{response}\n"
+
+                    logger.debug(response)
+                    response = client.recv(1024).decode("utf-8")
+            
+            mail_messages[str(i)] = mail
+        
+        logger.debug(f"Mailbox: {mail_messages}")
 
         menu_option = ""
 
         while (not menu_option == "d"):
             # display menu
-            display_menu()
+            display_search_menu()
 
             menu_option = input("Option: ")
 
             match menu_option:
                 case "a":
-                    mail_searching_words(client, user_credentials)
+                    mail_searching_words(mail_messages)
                 case "b":
-                    mail_searching_senders(client, user_credentials)
+                    mail_searching_senders(mail_messages)
                 case "c":
-                    mail_searching_date(client, user_credentials)
+                    mail_searching_date(mail_messages)
                 case "d":
                     exit(0)
                 case _:

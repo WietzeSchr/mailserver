@@ -123,8 +123,7 @@ def handle_client_connection(client_socket, client_address):
 
                         if client_request[1] in list(mailbox['mailbox_messages'].keys()) and not mailbox['mailbox_messages'][client_request[1]]['to_be_deleted']:
                             
-                            linecount = 2 + len(mailbox['mailbox_messages'][client_request[1]]['message_body'])
-                            server_response = f"+OK retrieving mail containing {linecount} lines"
+                            server_response = f"+OK retrieving mail with message id {client_request[1]}"
                             print(f"Server: {server_response}")
                             logger.debug(server_response)
                             client_socket.send(server_response.encode("utf-8"))
@@ -392,7 +391,7 @@ def read_mailbox(user):
                         
 def read_user_info():
 
-    logger.info("Process - read_user_info")
+    logger.info("Reading user information")
 
     try:
         userinfo_file = f"{os.path.join(server_config['WORKING_DIR'], "userinfo.txt")}"
@@ -474,7 +473,7 @@ if __name__ == "__main__":
     #    server   : ip address on which the server will be running - default: 127.0.0.1
     #    port     : port on which the server will be listening - default: 25
     #    loglevel : loglevel on which the script is running, to achieve less or more logging - default: INFO
-
+    
     parser = argparse.ArgumentParser(description='Get commandline arguments')
     parser.add_argument('-s', '--server', default="127.0.0.1", help='server address (IPv4)')
     parser.add_argument('-p', '--port', type=int, default=110, help='port of the server')
@@ -483,7 +482,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     # Create a dictionary with configuration options for the server
-    # to be able to pass trough the script.
+    # to be able to pass through the script.
 
     server_config = {"WORKING_DIR": os.path.dirname(os.path.abspath(__file__)),
                      "HOST": args.server,
@@ -514,9 +513,12 @@ if __name__ == "__main__":
     logger.info("==============================")
     logger.info("=   MAILSERVER POP3          =")
     logger.info("==============================")
+    logger.info("")
     logger.info(f"Mailserver POP3 config:")
-    logger.info(f"   POP3_HOST: {server_config['HOST']}")
-    logger.info(f"   POP3_PORT: {server_config['PORT']}")
+    logger.info(f"   POP3_HOST:   [{server_config['HOST']}]")
+    logger.info(f"   POP3_PORT:   [{server_config['PORT']}]")
+    logger.info(f"   WORKING_DIR: [{server_config['WORKING_DIR']}]")
+    logger.info("")
 
     # Read the userinfo file
 

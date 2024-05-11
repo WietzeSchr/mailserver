@@ -1,1 +1,0 @@
-python mail_client.py -l DEBUG
