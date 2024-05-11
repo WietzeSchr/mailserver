@@ -4,7 +4,7 @@ import getpass
 import re
 import logging
 import time
-
+import os
 
 def send_mail_smtp(client_config, message):
     
@@ -40,39 +40,43 @@ def send_mail_smtp(client_config, message):
 
         # receive response from the server after connect and print
         response = client.recv(1024).decode("utf-8")
-        logger.debug(f"   {response}")
+        logger.info(f"   Server: {response}")
         print(f"Server: {response}")
 
         # send HELO message after successful connect (220)
         if response[:3] == "220":
             client.send(f"HELO {client_config['SMTP_HOST']}".encode("utf-8")[:1024])
+            logger.info(f"   Client: HELO {client_config['SMTP_HOST']}")
             # receive response from the server after HELO and print
             response = client.recv(1024).decode("utf-8")
-            logger.debug(f"   {response}")
+            logger.info(f"   Server: {response}")
             print(f"Server: {response}")
             
         # send MAIL_FROM message after succesful HELO (250)
         if response[:3] == "250":
             client.send(f"MAIL {message[0]}".encode("utf-8")[:1024])
+            logger.info(f"   Client: MAIL {message[0]}")
             # receive response from the server after MAIL_FROM and print
             response = client.recv(1024).decode("utf-8")
-            logger.debug(f"   {response}")
+            logger.info(f"   Server: {response}")
             print(f"Server: {response}")
 
         # send RCPT_TO message after succesful MAIL (250)
         if response[:3] == "250":
             client.send(f"RCPT {message[1]}".encode("utf-8")[:1024])
+            logger.info(f"   Client: RCPT {message[1]}")
             # receive response from the server after RCPT_TO and print
             response = client.recv(1024).decode("utf-8")
-            logger.debug(f"   {response}")
+            logger.info(f"   Server: {response}")
             print(f"Server: {response}")
             
         # send DATA message after succesful RCPT (250)
         if response[:3] == "250":
             client.send(f"DATA".encode("utf-8")[:1024])
+            logger.info(f"   Client: DATA")
             # receive response from the server after DATA and print
             response = client.recv(1024).decode("utf-8")
-            logger.debug(f"   {response}")
+            logger.info(f"   Server: {response}")
             print(f"Server: {response}")
 
         # send the mail lines after successful DATA (354)
@@ -80,23 +84,25 @@ def send_mail_smtp(client_config, message):
             logger.debug("start sending email text")
             for line in message:
                 client.send(line.encode("utf-8")[:1024])
+                logger.info(f"   Client: {line}")
 
                 # wait for server
                 time.sleep(0.1)
 
             response = client.recv(1024).decode("utf-8")
-            logger.debug(f"   {response}")
+            logger.info(f"   Server: {response}")
             print(f"Server: {response}")
 
         # send QUIT message after successful sending mail lines (250)
         if response[:3] == "250":
             client.send(f"QUIT".encode("utf-8")[:1024])
+            logger.info(f"   Client: QUIT")
             response = client.recv(1024).decode("utf-8")
-            logger.debug(f"   {response}")
+            logger.info(f"   Server: {response}")
             print(f"Server: {response}")
 
     except Exception as e:
-        print(f"Error: {e}")
+        print(f"ERROR: {e}")
 
     finally:
         # close client socket (connection to the server)
@@ -195,7 +201,7 @@ def mail_searching_words(mail_messages):
     logger.info("Process - mail_searching_words")
 
     search_string = input("input: ")
-    logger.debug(f"   Input: {search_string}")
+    logger.info(f"   Input: {search_string}")
 
     print("output:")
 
@@ -210,22 +216,21 @@ def mail_searching_words(mail_messages):
                 string_found = True
         
         if string_found:
-            logger.debug(f"   Found: {mail_messages[message]}")
+            logger.info(f"   Found: {mail_messages[message]}")
             print(mail_messages[message])
-
 
 def mail_searching_senders(mail_messages):
 
     logger.info("Process - mail_searching_senders")
 
     search_sender = input("input: ")
-    logger.debug(f"   Input: {search_sender}")
+    logger.info(f"   Input: {search_sender}")
 
     print("output:")
 
     for message in mail_messages:
         if mail_messages[message]['from'] == search_sender:
-            logger.debug(f"   Found: {mail_messages[message]}")
+            logger.info(f"   Found: {mail_messages[message]}")
             print(mail_messages[message])
 
 def mail_searching_date(mail_messages):
@@ -233,31 +238,34 @@ def mail_searching_date(mail_messages):
     logger.info("Process - mail_searching_date")
 
     search_date = input("input (DD/MM/YYYY): ")
-    logger.debug(f"   Input: {search_date}")
+    logger.info(f"   Input: {search_date}")
 
     print("output:")
 
     for message in mail_messages:
         if mail_messages[message]['received'].split(' ')[0] == search_date:
-            logger.debug(f"   Found: {mail_messages[message]}")
+            logger.info(f"   Found: {mail_messages[message]}")
             print(mail_messages[message])
 
 def authenticate_pop(user_credentials, client):
 
-    client.send(f"USER {user_credentials['name']}".encode("utf-8")[:1024])
+    logger.info(f"Authenticating user [{user_credentials['name']}]")
 
+    client.send(f"USER {user_credentials['name']}".encode("utf-8")[:1024])
+    logger.info(f"   Client: USER {user_credentials['name']}")
+    
     response = client.recv(1024).decode("utf-8")
-    logger.debug(f"   {response}")
+    logger.info(f"   Server: {response}")
     print(f"Server: {response}")
 
     if response == "+OK Please enter a password":
 
         message = f"PASS {user_credentials['password']}"
         client.send(message.encode("utf-8")[:1024])
-        logger.debug(f"Client sent: {message}")
+        logger.info(f"   Client: {message}")
 
         response = client.recv(1024).decode("utf-8")
-        logger.debug(f"   {response}")
+        logger.info(f"   Server: {response}")
         print(f"Server: {response}")
 
         if response == "+OK valid logon":
@@ -295,11 +303,13 @@ def mail_management(client_config, user_credentials):
 
     client = None
     try:
+        logger.info(f"Connecting to POP3 server [{client_config['POP3_HOST']}] on port [{client_config['POP3_PORT']}]")
+
         client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         client.connect((client_config['POP3_HOST'], client_config['POP3_PORT']))
 
         response = client.recv(1024).decode("utf-8")
-        logger.debug(f"   {response}")
+        logger.info(f"   Server: {response}")
         print(f"Server: {response}")
 
         # authenticate the user
@@ -310,8 +320,10 @@ def mail_management(client_config, user_credentials):
                 user_credentials = get_user_credentials()
 
         client.send("LIST".encode("utf-8"))
+        logger.info(f"   Client: LIST")
 
         response = client.recv(1024).decode("utf-8")
+        logger.info(f"   Server: {response}")
 
         if response == "+OK":
 
@@ -322,12 +334,13 @@ def mail_management(client_config, user_credentials):
             print("")
 
             response = client.recv(1024).decode("utf-8")
+            logger.info(f"   Server: {response}")
 
             while not response == ".":
 
-                logger.debug(f"Mail: {response}")
                 print(f"    {response}")
                 response = client.recv(1024).decode("utf-8")
+                logger.info(f"   Server: {response}")
 
             display_management_options()
 
@@ -342,13 +355,18 @@ def mail_management(client_config, user_credentials):
                 case "STAT":
 
                     client.send(line.encode("utf-8"))
+                    logger.info(f"   Client: {line}")
                     response = client.recv(1024).decode("utf-8")
                     print(f"Server: {response}")
+                    logger.info(f"   Server: {response}")
 
                 case "LIST":
 
                     client.send(line.encode("utf-8"))
+                    logger.info(f"   Client: {line}")
                     response = client.recv(1024).decode("utf-8")
+                    logger.info(f"   Server: {response}")
+
                     if response == "+OK":
 
                         print("")
@@ -358,41 +376,55 @@ def mail_management(client_config, user_credentials):
                         print("")
 
                         response = client.recv(1024).decode("utf-8")
+                        logger.info(f"   Server: {response}")
+
                         while not response == ".":
-                            logger.debug(f"Mail: {response}")
                             print(f"    {response}")
                             response = client.recv(1024).decode("utf-8")
+                            logger.info(f"   Server: {response}")
 
                 case "RETR":
 
                     client.send(line.encode("utf-8"))
+                    logger.info(f"   Client: {line}")
                     time.sleep(0.1)
+
                     response = client.recv(1024).decode("utf-8")
+                    logger.info(f"   Server: {response}")
                     print(f"Server: {response}")
                     if response[:3] == "+OK":
 
                         response = client.recv(1024).decode("utf-8")
+                        logger.info(f"   Server: {response}")
+
                         while not response == ".":
-                            logger.debug(response)
                             print(response)
                             response = client.recv(1024).decode("utf-8")
+                            logger.info(f"   Server: {response}")
 
                 case "DELE":
 
                     client.send(line.encode("utf-8"))
+                    logger.info(f"   Client: {line}")
                     response = client.recv(1024).decode("utf-8")
+                    logger.info(f"   Server: {response}")
                     print(f"Server: {response}")
 
                 case "RSET":
 
                     client.send(line.encode("utf-8"))
+                    logger.info(f"   Client: {line}")
                     response = client.recv(1024).decode("utf-8")
+                    logger.info(f"   Server: {response}")
                     print(f"Server: {response}")
 
                 case "QUIT":
 
                     client.send(line.encode("utf-8"))
+                    logger.info(f"   Client: {line}")
+
                     response = client.recv(1024).decode("utf-8")
+                    logger.info(f"   Server: {response}")
                     print(f"Server: {response}")
                     if response == "closed":
                         running_conversation = False
@@ -402,13 +434,13 @@ def mail_management(client_config, user_credentials):
                     print("Invalid command!")
 
     except Exception as e:
-        print(f"Error: {e}")
+        print(f"ERROR: {e}")
+        logger.error(f"   {e}")
 
     finally:
         # close client socket (connection to the server)
         client.close()
-        logger.info(
-            f"Connection to server [{client_config['SMTP_HOST']}] on port [{client_config['SMTP_PORT']}] closed")
+        logger.info(f"Connection to server [{client_config['SMTP_HOST']}] on port [{client_config['SMTP_PORT']}] closed")
 
 def mail_searching(client_config, user_credentials):
 
@@ -416,11 +448,13 @@ def mail_searching(client_config, user_credentials):
 
     client = None
     try:
+        logger.info(f"Connecting to POP3 server [{client_config['POP3_HOST']}] on port [{client_config['POP3_PORT']}]")
+
         client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         client.connect((client_config['POP3_HOST'], client_config['POP3_PORT']))
 
         response = client.recv(1024).decode("utf-8")
-        logger.debug(f"   {response}")
+        logger.info(f"   Server: {response}")
         print(f"Server: {response}")
 
         # authenticate the user
@@ -431,7 +465,9 @@ def mail_searching(client_config, user_credentials):
                 user_credentials = get_user_credentials()
         
         client.send("STAT".encode("utf-8"))
+        logger.info(f"   Client: STAT")
         response = client.recv(1024).decode("utf-8")
+        logger.info(f"   Server: {response}")
         
         rc, message_count, mailbox_size = response.split(' ')
 
@@ -446,11 +482,14 @@ def mail_searching(client_config, user_credentials):
             mail['message'] = ""
 
             client.send(f"RETR {i}".encode("utf-8"))
+            logger.info(f"   Client: RETR {i}")
             time.sleep(0.1)
             response = client.recv(1024).decode("utf-8")
+            logger.info(f"   Server: {response}")
 
             if response[:3] == "+OK":
                 response = client.recv(1024).decode("utf-8")
+                logger.info(f"   Server: {response}")
                 while not response == ".":
 
                     if response[0:6] == "From: ":
@@ -466,10 +505,9 @@ def mail_searching(client_config, user_credentials):
 
                     logger.debug(response)
                     response = client.recv(1024).decode("utf-8")
+                    logger.info(f"   Server: {response}")
             
             mail_messages[str(i)] = mail
-        
-        logger.debug(f"Mailbox: {mail_messages}")
 
         menu_option = ""
 
@@ -491,9 +529,14 @@ def mail_searching(client_config, user_credentials):
                 case _:
                     print("Invalid option!")
 
-
     except Exception as e:
-        print(f"Error: {e}")
+        print(f"ERROR: {e}")
+        logger.error(f"   {e}")
+
+    finally:
+        # close client socket (connection to the server)
+        client.close()
+        logger.info(f"Connection to server [{client_config['SMTP_HOST']}] on port [{client_config['SMTP_PORT']}] closed")
 
 def get_user_credentials():
     
@@ -529,6 +572,7 @@ def display_menu():
 
 def display_management_options():
 
+    # This function displays the mail management menu
     print("")
     print("Possible commands:")
     print("LIST - lists all mails")
@@ -542,6 +586,7 @@ def display_management_options():
 
 def display_search_menu():
 
+    # This function displays the mail search menu
     print("")
     print("========================================")
     print("   MAIL CLIENT")
@@ -553,23 +598,45 @@ def display_search_menu():
     print("   d)   Exit")
     print("")
 
-
 if __name__ == "__main__":
 
+    # Get the arguments passed to the script
+    #
+    #    server   : ip address on which the server will be running - default: 127.0.0.1
+    #    loglevel : loglevel on which the script is running, to achieve less or more logging - default: INFO
+    
     parser = argparse.ArgumentParser(description='Get commandline arguments')
     parser.add_argument('-s', '--server', default="127.0.0.1", help='server address (IPv4)')
     parser.add_argument('-l', '--loglevel', default="INFO", help='Log level', choices=['INFO', 'DEBUG', 'WARNING', 'ERROR', 'CRITICAL'])
  
     args = parser.parse_args()
 
+    # Create a dictionary with configuration options for the client
+    # to be able to pass through the script.
+
+    client_config = {"WORKING_DIR": os.path.dirname(os.path.abspath(__file__)),
+                     "LOG_DIR": os.path.join(os.path.dirname(os.path.abspath(__file__)), 'log'),
+                     "MAILBOX_DIR": os.path.join(os.path.dirname(os.path.abspath(__file__)), 'mailboxes'),
+                     "SMTP_HOST": args.server,
+                     "SMTP_PORT": 25,
+                     "POP3_HOST": args.server,
+                     "POP3_PORT": 110}
+    
+    # Instantiate a logger, to have a log file with all or specific messages logged by the script
+    # based on a loglevel.
+
     logger = logging.getLogger()
     logger.setLevel(args.loglevel)
     
-    # create file handler which logs even debug messages
-    fh = logging.FileHandler('mail_client.log')
+    # Create file handler in which the messages will be logged
+    # and set a default loglevel
+
+    fh = logging.FileHandler(os.path.join(client_config['WORKING_DIR'], 'log', 'mail_client.log'))
     fh.setLevel(logging.DEBUG)
     
-    # create formatter and add it to the handlers
+    # Create formatter and add it to the handler
+    # to have a standardized output format in the logfile.
+
     formatter = logging.Formatter('%(asctime)s - %(levelname)-8s - %(message)s')
     fh.setFormatter(formatter)
 
@@ -579,17 +646,12 @@ if __name__ == "__main__":
     logger.info("==============================")
     logger.info("=   MAIL CLIENT              =")
     logger.info("==============================")
-    
-    client_config = {"SMTP_HOST": args.server,
-                     "SMTP_PORT": 25,
-                     "POP3_HOST": args.server,
-                     "POP3_PORT": 110}
-
+    logger.info("")
     logger.info(f"Mail Client config:")
-    logger.info(f"   SMTP_HOST: {client_config['SMTP_HOST']}")
-    logger.info(f"   SMTP_PORT: {client_config['SMTP_PORT']}")
-    logger.info(f"   POP3_HOST: {client_config['POP3_HOST']}")
-    logger.info(f"   POP3_PORT: {client_config['POP3_PORT']}")
+
+    # Log all config parameters
+    for key, value in client_config.items():
+        logger.info(f"   {key}: [{value}]")
 
     # ask for user credentials
     user_credentials = get_user_credentials()

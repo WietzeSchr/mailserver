@@ -8,6 +8,9 @@ import re
 import os
 
 def handle_client_connection(client_socket, client_address):
+    
+    logger.info(f"Handle client connection from [{client_address[0]} - {client_address[1]}] in separate thread")
+
     received_commands = {"HELO": False,
                          "MAIL": False,
                          "RCPT": False,
@@ -17,15 +20,16 @@ def handle_client_connection(client_socket, client_address):
 
     try:
         server_response = f"220 {server_config['HOST']} Service Ready"
+        logger.info(f"[{client_address[0]} - {client_address[1]}] - Server: {server_response}")
         print(f"Server: {server_response}")
         client_socket.send(server_response.encode("utf-8"))
         
         while running_conversation:
             client_request = client_socket.recv(1024).decode("utf-8")
+            logger.info(f"[{client_address[0]} - {client_address[1]}] - Client: {client_request}")
             print(f"Client: {client_request}")
 
             command = client_request.split(' ')[0].upper()
-            logger.debug(f"{command} command received")
 
             match command:
 
@@ -57,6 +61,7 @@ def handle_client_connection(client_socket, client_address):
                     if received_commands["RCPT"]:
                         server_response = f"354 Start mail input; end with <CRLF>.<CRLF>"
                         print(f"Server: {server_response}")
+                        logger.info(f"[{client_address[0]} - {client_address[1]}] - Server: {server_response}")
                         client_socket.send(server_response.encode("utf-8"))
 
                         content = []
@@ -79,6 +84,7 @@ def handle_client_connection(client_socket, client_address):
 
                     server_response = f"221 {server_config['HOST']} Service closing transmission channel"
                     print(f"Server: {server_response}")
+                    logger.info(f"[{client_address[0]} - {client_address[1]}] - Server: {server_response}")
                     client_socket.send(server_response.encode("utf-8"))
                     break
 
@@ -87,46 +93,58 @@ def handle_client_connection(client_socket, client_address):
                     server_response = f"502 Command not implemented"
 
             print(f"Server: {server_response}")
+            logger.info(f"[{client_address[0]} - {client_address[1]}] - Server: {server_response}")
             client_socket.send(server_response.encode("utf-8"))
 
     except Exception as e:
-        print(f"Error accepting client")
+        print(f"ERROR: Accepting client")
         print(e)
+        logger.error(f"   {e}")
 
     finally:
         client_socket.close()
         print(f"The connection to client {client_address[0]} on port {client_address[1]} has been closed!")
-
+        logger.info(f"The connection to client {client_address[0]} on port {client_address[1]} has been closed!")
 
 def store_mail(recipient, data):
 
-    logger.info("Process - store_mail")
+    logger.info(f"Store mail in mailbox for user [{recipient}]")
 
-    mailbox = open(f"{os.path.join(server_config['WORKING_DIR'], recipient, "my_mailbox")}", "a")
-    logger.debug(f"   Mail will be stored in [{mailbox}]")
+    try:
+        mailbox = open(f"{os.path.join(server_config['MAILBOX_DIR'], recipient, "my_mailbox")}", "a")
+        logger.debug(f"   Mail will be stored in [{mailbox}]")
 
-    for line in data:
-        logger.debug(f"   >>> {line}")
-        mailbox.write(f"{line}\n")
+        for line in data:
+            logger.debug(f"   >>> {line}")
+            mailbox.write(f"{line}\n")
 
-        if line.split(' ')[0] == "Subject:":
-            now = datetime.datetime.now()
-            current_datetime = now.strftime("%d/%m/%Y %H:%M")
-            mailbox.write(f"Received: {current_datetime}\n")
+            if line.split(' ')[0] == "Subject:":
+                now = datetime.datetime.now()
+                current_datetime = now.strftime("%d/%m/%Y %H:%M")
+                mailbox.write(f"Received: {current_datetime}\n")
+
+    except Exception as e:
+        logger.error(f"   {e}")
+        print(f"ERROR: {e}")
 
 def read_user_info():
 
-    logger.info("Process - read_user_info")
+    # This function reads the user / password info from the userinfo.txt file
+    # and returns a dictionary with all the information
+
+    logger.info("Reading user information")
 
     try:
         userinfo_file = f"{os.path.join(server_config['WORKING_DIR'], "userinfo.txt")}"
-        logger.debug(f"   {userinfo_file} contains all users and passwords")
+        logger.info(f"   File containing all users and passwords: [{userinfo_file}]")
 
         with open(userinfo_file, 'r') as f: 
 
             # Read the text file into a list of lines  
             lines = f.readlines() 
     
+        f.close()
+
         # Create an empty dictionary 
         users = {} 
         
@@ -144,8 +162,8 @@ def read_user_info():
             users[user_name] = user_password
     
     except Exception as e:
-        logger.error(e)
-        print(e)
+        logger.error(f"   {e}")
+        print(f"ERROR: {e}")
         exit(8)
 
     finally:
@@ -153,7 +171,7 @@ def read_user_info():
 
 def run_mailserver_smtp():
 
-    logger.info("Process - run_mailserver_smtp")
+    logger.info("Run SMTP mailserver")
 
     try:
 
@@ -182,7 +200,7 @@ def run_mailserver_smtp():
             my_thread.start()
 
     except Exception as e:
-        logger.error(e)
+        logger.error(f"   {e}")
         print(f"Error: {e}")
 
     finally:
@@ -208,6 +226,8 @@ if __name__ == "__main__":
     # to be able to pass trough the script.
 
     server_config = {"WORKING_DIR": os.path.dirname(os.path.abspath(__file__)),
+                     "LOG_DIR": os.path.join(os.path.dirname(os.path.abspath(__file__)), 'log'),
+                     "MAILBOX_DIR": os.path.join(os.path.dirname(os.path.abspath(__file__)), 'mailboxes'),
                      "HOST": args.server,
                      "PORT": args.port}
     
@@ -220,7 +240,7 @@ if __name__ == "__main__":
     # Create file handler in which the messages will be logged
     # and set a default loglevel
 
-    fh = logging.FileHandler(os.path.join(server_config['WORKING_DIR'], 'mailserver_smtp.log'))
+    fh = logging.FileHandler(os.path.join(server_config['LOG_DIR'], 'mailserver_smtp.log'))
     fh.setLevel(logging.DEBUG)
     
     # Create formatter and add it to the handler
@@ -236,13 +256,16 @@ if __name__ == "__main__":
     logger.info("==============================")
     logger.info("=   MAILSERVER SMTP          =")
     logger.info("==============================")
+    logger.info("")
     logger.info(f"Mailserver SMTP config:")
-    logger.info(f"   SMTP_HOST: {server_config['HOST']}")
-    logger.info(f"   SMTP_PORT: {server_config['PORT']}")
+
+    # Log all config parameters
+    for key, value in server_config.items():
+        logger.info(f"   {key}: [{value}]")
 
     # Read the userinfo file
-
     users = read_user_info()
-    logger.debug(users)
+    logger.debug(f"   {users}")
     
+    # Start SMTP server
     run_mailserver_smtp()

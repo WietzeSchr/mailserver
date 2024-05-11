@@ -9,6 +9,9 @@ import os
 import sys
 
 def handle_client_connection(client_socket, client_address):
+
+    logger.info(f"Handle client connection from [{client_address[0]} - {client_address[1]}] in separate thread")
+
     received_commands = {"USER": False, "PASS": False}
 
     running_conversation = True
@@ -19,21 +22,20 @@ def handle_client_connection(client_socket, client_address):
 
         server_response = "+OK POP3 server ready"
         print(f"Server: {server_response}")
-        logger.debug(f"server response: {server_response}")
+        logger.info(f"[{client_address[0]} - {client_address[1]}] - Server: {server_response}")
         client_socket.send(server_response.encode("utf-8"))
-
 
         while running_conversation:
             client_request = client_socket.recv(1024).decode("utf-8")
             print(f"Client: {client_request}")
+            logger.info(f"[{client_address[0]} - {client_address[1]}] - Client: {client_request}")
             client_request = client_request.split(' ')
 
             command = client_request[0].upper()
-            logger.debug(f"{command}")
+
             match command:
 
                 # Authentication phase
-
                 case "USER":
 
                     username = client_request[1]
@@ -44,39 +46,39 @@ def handle_client_connection(client_socket, client_address):
 
                         server_response = "+OK Please enter a password"
                         print(f"Server: {server_response}")
+                        logger.info(f"[{client_address[0]} - {client_address[1]}] - Server: {server_response}")
                         client_socket.send(server_response.encode("utf-8"))
-                        logger.debug(f"server response: {server_response}")
-
 
                     else:
 
                         server_response = "No such user"
                         print(f"Server: {server_response}")
+                        logger.info(f"[{client_address[0]} - {client_address[1]}] - Server: {server_response}")
                         client_socket.send(server_response.encode("utf-8"))
-                        logger.debug(f"Server response: {server_response}")
-
+                        
                 case "PASS":
 
                     if received_commands["USER"] is not False:
+
                         if users[received_commands["USER"]] == client_request[1]:
+
                             server_response = "" 
                             received_commands["PASS"] = True
 
                             server_response = "+OK valid logon"
                             print(f"Server: {server_response}")
+                            logger.info(f"[{client_address[0]} - {client_address[1]}] - Server: {server_response}")
                             client_socket.send(server_response.encode("utf-8"))
-                            logger.debug(f"server response: {server_response}")
-
+                            
                             mailbox = read_mailbox(received_commands["USER"])
-
-                            # TODO: get exclusive lock on the mailbox
 
                         else:
 
-                            server_response = "Wrong password"
+                            server_response = "-ERR Wrong password"
                             print(f"Server: {server_response}")
+                            logger.info(f"[{client_address[0]} - {client_address[1]}] - Server: {server_response}")
                             client_socket.send(server_response.encode("utf-8"))
-                            logger.debug(f"server response: {server_response}")
+                            
 
                 case "STAT":
 
@@ -89,6 +91,7 @@ def handle_client_connection(client_socket, client_address):
 
                         server_response = f"+OK {total_mails} {total_size}"
                         print(f"Server: {server_response}")
+                        logger.info(f"[{client_address[0]} - {client_address[1]}] - Server: {server_response}")
                         client_socket.send(server_response.encode("utf-8"))
 
                 case "LIST":
@@ -97,77 +100,77 @@ def handle_client_connection(client_socket, client_address):
 
                         server_response = "+OK"
                         print(f"Server: {server_response}")
+                        logger.info(f"[{client_address[0]} - {client_address[1]}] - Server: {server_response}")
                         client_socket.send(server_response.encode("utf-8"))
-                        logger.debug(mailbox)
-                        logger.debug(f"Server: Listing {mailbox['message_count']} mails")
 
                         for mail_id in mailbox['mailbox_messages'].keys():
 
                             if not mailbox['mailbox_messages'][mail_id]['to_be_deleted']:
-                                line = f"{mail_id}. From: {mailbox['mailbox_messages'][mail_id]['from']} Received: {mailbox['mailbox_messages'][mail_id]['received']} Subject: {mailbox['mailbox_messages'][mail_id]['subject']} Size: {mailbox['mailbox_messages'][mail_id]['message_size']}"
-                                logger.debug(f"mail: {line}")
+
+                                line = f"{mail_id} {mailbox['mailbox_messages'][mail_id]['from']} {mailbox['mailbox_messages'][mail_id]['received']} {mailbox['mailbox_messages'][mail_id]['subject']}"
+                                logger.info(f"[{client_address[0]} - {client_address[1]}] - Server: {line}")
                                 client_socket.send(line.encode("utf-8"))
                                 time.sleep(0.1)
 
                         client_socket.send(".".encode("utf-8"))
 
-                        logger.debug("Server: done listing emails")
+                        logger.debug(f"[{client_address[0]} - {client_address[1]}] - Server: done listing emails")
 
                 case "RETR":
 
                     if received_commands["PASS"]:
 
-                        logger.debug(client_request)
-                        logger.debug(f"{client_request[1]}, {list(mailbox['mailbox_messages'].keys())}")
-                        logger.debug(f"mailbox {mailbox}")
+                        logger.debug(f"[{client_address[0]} - {client_address[1]}] - >>> request: {client_request}")
+                        logger.debug(f"[{client_address[0]} - {client_address[1]}] - >>> mailbox: {mailbox}")
 
                         if client_request[1] in list(mailbox['mailbox_messages'].keys()) and not mailbox['mailbox_messages'][client_request[1]]['to_be_deleted']:
                             
                             server_response = f"+OK retrieving mail with message id {client_request[1]}"
                             print(f"Server: {server_response}")
-                            logger.debug(server_response)
+                            logger.info(f"[{client_address[0]} - {client_address[1]}] - Server: {server_response}")
                             client_socket.send(server_response.encode("utf-8"))
                             time.sleep(0.1)
 
                             server_response = f"From: {mailbox['mailbox_messages'][client_request[1]]['from']}"
-                            logger.debug(server_response)
+                            logger.debug(f"[{client_address[0]} - {client_address[1]}] - >>> {server_response}")
                             client_socket.send(server_response.encode("utf-8"))
                             time.sleep(0.1)
 
                             server_response = f"To: {mailbox['mailbox_messages'][client_request[1]]['to']}"
-                            logger.debug(server_response)
+                            logger.debug(f"[{client_address[0]} - {client_address[1]}] - >>> {server_response}")
                             client_socket.send(server_response.encode("utf-8"))
                             time.sleep(0.1)
 
                             server_response = f"Received: {mailbox['mailbox_messages'][client_request[1]]['received']}"
-                            logger.debug(server_response)
+                            logger.debug(f"[{client_address[0]} - {client_address[1]}] - >>> {server_response}")
                             client_socket.send(server_response.encode("utf-8"))
                             time.sleep(0.1)
 
                             server_response = f"Subject: {mailbox['mailbox_messages'][client_request[1]]['subject']}"
-                            logger.debug(server_response)
+                            logger.debug(f"[{client_address[0]} - {client_address[1]}] - >>> {server_response}")
                             client_socket.send(server_response.encode("utf-8"))
                             time.sleep(0.1)
 
                             for line in mailbox['mailbox_messages'][client_request[1]]['message_body']:
-                                logger.debug(line)
+                                logger.debug(f"[{client_address[0]} - {client_address[1]}] - >>> {line}")
                                 client_socket.send(line.encode("utf-8"))
                                 time.sleep(0.1)
                             
                             server_response = "."
-                            logger.debug(server_response)
                             client_socket.send(server_response.encode("utf-8"))
 
                         else:
 
-                            server_response = f"-ERR no such message"
+                            server_response = f"-ERR No such message"
                             print(f"Server: {server_response}")
+                            logger.info(f"[{client_address[0]} - {client_address[1]}] - Server: {server_response}")
                             client_socket.send(server_response.encode("utf-8"))
 
                     else:
 
-                        server_response = "-ERR not authenticated"
+                        server_response = "-ERR Not authenticated"
                         print(f"Server: {server_response}")
+                        logger.info(f"[{client_address[0]} - {client_address[1]}] - Server: {server_response}")
                         client_socket.send(server_response.encode("utf-8"))
 
                 case "DELE":
@@ -179,18 +182,21 @@ def handle_client_connection(client_socket, client_address):
                             mailbox['mailbox_messages'][client_request[1]]['to_be_deleted'] = True
                             server_response = "+OK"
                             print(f"Server: {server_response}")
+                            logger.info(f"[{client_address[0]} - {client_address[1]}] - Server: {server_response}")
                             client_socket.send(server_response.encode("utf-8"))
 
                         else:
 
-                            server_response = "-ERR no such message"
+                            server_response = "-ERR No such message"
                             print(f"Server: {server_response}")
+                            logger.info(f"[{client_address[0]} - {client_address[1]}] - Server: {server_response}")
                             client_socket.send(server_response.encode("utf-8"))
 
                     else:
 
-                        server_response = "-ERR not authenticated"
+                        server_response = "-ERR Not authenticated"
                         print(f"Server: {server_response}")
+                        logger.info(f"[{client_address[0]} - {client_address[1]}] - Server: {server_response}")
                         client_socket.send(server_response.encode("utf-8"))
 
                 case "RSET":
@@ -204,12 +210,14 @@ def handle_client_connection(client_socket, client_address):
 
                         server_response = "+OK"
                         print(f"Server: {server_response}")
+                        logger.info(f"[{client_address[0]} - {client_address[1]}] - Server: {server_response}")
                         client_socket.send(server_response.encode("utf-8"))
 
                     else:
 
-                        server_response = "-ERR not authenticated"
+                        server_response = "-ERR Not authenticated"
                         print(f"Server: {server_response}")
+                        logger.info(f"[{client_address[0]} - {client_address[1]}] - Server: {server_response}")
                         client_socket.send(server_response.encode("utf-8"))
 
                 case "QUIT":
@@ -223,11 +231,12 @@ def handle_client_connection(client_socket, client_address):
                 case _:
                     server_response = f"502 Command not implemented"
                     print(f"Server: {server_response}")
+                    logger.info(f"[{client_address[0]} - {client_address[1]}] - Server: {server_response}")
                     client_socket.send(server_response.encode("utf-8"))
 
     except Exception as e:
-        logger.error(e)
-        print(f"Error accepting client")
+        logger.error(f"   {e}")
+        print(f"ERROR accepting client")
 
     finally:
         client_socket.close()
@@ -262,18 +271,20 @@ def get_size(obj, seen=None):
 
 def write_mailbox_file(mailbox):
 
-    logger.info("Process - write_mailbox_file")
-    logger.debug(f"   Writing mailbox for user [{mailbox['user']}]")
+    logger.info(f"Writing mailbox file for user [{mailbox['user']}]")
 
     try:
 
-        mailbox_file = f"{os.path.join(os.path.dirname(os.path.abspath(__file__)), mailbox['user'], "my_mailbox")}"
+        mailbox_file = f"{os.path.join(server_config['MAILBOX_DIR'], mailbox['user'], "my_mailbox")}"
 
         with open(mailbox_file, 'w') as m:
 
             for mail in mailbox['mailbox_messages']:
                 
-                if not mailbox['mailbox_messages'][str(mail)]['to_be_deleted']:
+                if mailbox['mailbox_messages'][str(mail)]['to_be_deleted']:
+                    logger.debug(f"   [DELETE] - [{mailbox['mailbox_messages'][str(mail)]}]")
+                else:
+                    logger.debug(f"   [SAVE  ] - [{mailbox['mailbox_messages'][str(mail)]}]")
 
                     m.write(f"From: {mailbox['mailbox_messages'][str(mail)]['from']}\n")
                     m.write(f"To: {mailbox['mailbox_messages'][str(mail)]['to']}\n")
@@ -288,38 +299,43 @@ def write_mailbox_file(mailbox):
         m.close()
 
     except Exception as e:
-        logger.error(e)
-        print(e)
+        logger.error(f"   {e}")
+        print(f"ERROR: {e}")
 
 def read_mailbox(user):
 
-    """
-    mailbox
-        user
-        message_count
-        total_size
-        deleted_messages
-        mailbox_messages
-            1
-                from		sender
-                to		receiver
-                received	datetime
-                message_body	[]
-                message_size	9999
-                to_be_deleted	True/False
-            2
-                from		sender
-                to		receiver
-                received	datetime
-                message_body	[]
-                message_size	9999
-                to_be_deleted	True/False
-            ...
-    """
-    logger.info("Process - read-mailbox")
+    # This function reads the entire mailbox of a user
+    # and returns a dictionary in the following format:
+    #
+    #    mailbox
+    #
+    #        user                   (user name)
+    #        message_count          (number of mail messages)
+    #        total_size             (total size of the mailbox)
+    #        deleted_messages       (are there messages that need to be deleted: True / False)
+    #
+    #        mailbox_messages       (nested dictionary with mail messages)
+    #            1                  (message id)
+    #                from		    (sender mail address)
+    #                to		        (receiver mail address)
+    #                received	    (datetime received mail)
+    #                message_body	(list with mail lines: [])
+    #                message_size	(size of the mail message: 9999)
+    #                to_be_deleted	(message needs to be deleted: True / False)
+    #            2                  (message id)
+    #                from		    (sender mail address)
+    #                to		        (receiver mail address)
+    #                received	    (datetime received mail)
+    #                message_body	(list with mail lines: [])
+    #                message_size	(size of the mail message: 9999)
+    #                to_be_deleted	(message needs to be deleted: True / False)
+    #            ...
+ 
+    logger.info(f"   Read mailbox for user [{user}]")
 
     try:
-        mailbox_file = f"{os.path.join(os.path.dirname(os.path.abspath(__file__)), user, "my_mailbox")}"
+        mailbox_file = f"{os.path.join(server_config['MAILBOX_DIR'], user, "my_mailbox")}"
+        logger.info(f"      Mailbox file to be read: [{mailbox_file}]")
 
         with open(mailbox_file, 'r') as m:
             mailbox_lines = m.readlines()
@@ -335,6 +351,8 @@ def read_mailbox(user):
 
         mail_count = 0
 
+        logger.debug(f"   Number of lines in the mailbox: [{len(mailbox_lines)}]"
+                     )
         if len(mailbox_lines) > 0:
 
             mail = {"from": None, "to": None, "received": None, "subject": None, "message_body": [], "message_size": 0, "to_be_deleted": False}
@@ -342,10 +360,8 @@ def read_mailbox(user):
             for line in mailbox_lines:
                 
                 line = line.strip()
-                logger.debug(f"   >>> {line}")
 
                 if line == ".":
-                    logger.debug("   this is a . line")
                     
                     mail_count += 1
                     mailbox['message_count'] += 1
@@ -353,10 +369,9 @@ def read_mailbox(user):
                     mail['message_size'] = get_size(mail)
                     mailbox["total_size"] += get_size(mail)
 
-                    logger.debug(mail)
+                    logger.debug(f"   Mail message: [{mail}]")
                     mailbox['mailbox_messages'][str(mail_count)] = mail
 
-                    logger.debug(f"current mail count {mail_count}")
                     mail = {"from": None, "to": None, "received": None, "subject": None, "message_body": [], "message_size": 0, "to_be_deleted": False}
 
                 else:
@@ -364,38 +379,36 @@ def read_mailbox(user):
                     line_split = line.split(' ')
 
                     if line_split[0].lower() == "from:":
-                        logger.debug("   this is a FROM line")
                         mail["from"] = line[6:]
 
                     elif line_split[0].lower() == "to:":
-                        logger.debug("   this is a TO line")
                         mail["to"] = line[4:]
 
                     elif line_split[0].lower() == "received:":
-                        logger.debug("   this is a RECEIVED line")
                         mail["received"] = line[10:]
 
                     elif line_split[0].lower() == "subject:":
-                        logger.debug("   this is a SUBJECT line")
                         mail["subject"] = line[9:]
 
                     else:
-                        logger.debug("   this is a MESSAGE BODY line")
                         mail["message_body"].append(line)
 
             return mailbox
 
     except Exception as e:
-        logger.error(e)
+        logger.error(f"   {e}")
         print(f"Error: {e}")
                         
 def read_user_info():
+
+    # This function reads the user / password info from the userinfo.txt file
+    # and returns a dictionary with all the information
 
     logger.info("Reading user information")
 
     try:
         userinfo_file = f"{os.path.join(server_config['WORKING_DIR'], "userinfo.txt")}"
-        logger.debug(f"   {userinfo_file} contains all users and passwords")
+        logger.info(f"   File containing all users and passwords: [{userinfo_file}]")
 
         with open(userinfo_file, 'r') as f: 
 
@@ -421,8 +434,8 @@ def read_user_info():
             users[user_name] = user_password
     
     except Exception as e:
-        logger.error(e)
-        print(e)
+        logger.error(f"   {e}")
+        print(f"ERROR: {e}")
         exit(8)
 
     finally:
@@ -430,7 +443,7 @@ def read_user_info():
 
 def run_pop_server():
 
-    logger.info("Process - run_mailserver_smtp")
+    logger.info("Run POP3 mailserver")
 
     try:
 
@@ -444,8 +457,8 @@ def run_pop_server():
         
         # start listening for incoming connections
         my_server.listen()
-        logger.info(f"   Server running on {server_config['HOST']} listening on port {server_config['PORT']}")
-        print(f"Server running on {server_config['HOST']} listening on port {server_config['PORT']}")
+        logger.info(f"   Server running on [{server_config['HOST']}] listening on port [{server_config['PORT']}]")
+        print(f"Server running on [{server_config['HOST']}] listening on port [{server_config['PORT']}]")
 
         # keep running and wait for incoming client connections
         while True:
@@ -459,8 +472,8 @@ def run_pop_server():
             my_thread.start()
 
     except Exception as e:
-        logger.error(e)
-        print(f"Error: {e}")
+        logger.error(f"   {e}")
+        print(f"ERROR: {e}")
 
     finally:
         # stop the server when something is going wrong
@@ -485,6 +498,8 @@ if __name__ == "__main__":
     # to be able to pass through the script.
 
     server_config = {"WORKING_DIR": os.path.dirname(os.path.abspath(__file__)),
+                     "LOG_DIR": os.path.join(os.path.dirname(os.path.abspath(__file__)), 'log'),
+                     "MAILBOX_DIR": os.path.join(os.path.dirname(os.path.abspath(__file__)), 'mailboxes'),
                      "HOST": args.server,
                      "PORT": args.port}
     
@@ -497,7 +512,7 @@ if __name__ == "__main__":
     # Create file handler in which the messages will be logged
     # and set a default loglevel
 
-    fh = logging.FileHandler(os.path.join(server_config['WORKING_DIR'], 'pop_server.log'))
+    fh = logging.FileHandler(os.path.join(server_config['WORKING_DIR'], 'log', 'pop_server.log'))
     fh.setLevel(logging.DEBUG)
     
     # Create formatter and add it to the handler
@@ -515,14 +530,14 @@ if __name__ == "__main__":
     logger.info("==============================")
     logger.info("")
     logger.info(f"Mailserver POP3 config:")
-    logger.info(f"   POP3_HOST:   [{server_config['HOST']}]")
-    logger.info(f"   POP3_PORT:   [{server_config['PORT']}]")
-    logger.info(f"   WORKING_DIR: [{server_config['WORKING_DIR']}]")
-    logger.info("")
 
-    # Read the userinfo file
+    # Log all config parameters
+    for key, value in server_config.items():
+        logger.info(f"   {key}: [{value}]")
 
+    # Read the userinfo file and log
     users = read_user_info()
-    logger.debug(users)
+    logger.debug(f"   {users}")
     
+    # Start pop server
     run_pop_server()
