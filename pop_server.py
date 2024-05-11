@@ -512,7 +512,7 @@ if __name__ == "__main__":
     # Create file handler in which the messages will be logged
     # and set a default loglevel
 
-    fh = logging.FileHandler(os.path.join(server_config['WORKING_DIR'], 'log', 'pop_server.log'))
+    fh = logging.FileHandler(os.path.join(server_config['LOG_DIR'], 'pop_server.log'))
     fh.setLevel(logging.DEBUG)
     
     # Create formatter and add it to the handler
