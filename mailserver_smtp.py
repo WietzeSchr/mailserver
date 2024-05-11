@@ -226,7 +226,7 @@ if __name__ == "__main__":
     # to be able to pass trough the script.
 
     server_config = {"WORKING_DIR": os.path.dirname(os.path.abspath(__file__)),
-                     "LOG_DIR": os.path.join(os.path.dirname(os.path.abspath(__file__)), 'log'),
+                     "LOG_DIR": os.path.join(os.path.dirname(os.path.abspath(__file__)), 'logfiles'),
                      "MAILBOX_DIR": os.path.join(os.path.dirname(os.path.abspath(__file__)), 'mailboxes'),
                      "HOST": args.server,
                      "PORT": args.port}
